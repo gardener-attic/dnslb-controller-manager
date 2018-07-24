@@ -1,0 +1,19 @@
+/cmd/dnslb-controller-manager/dnslb-controller-manager
+
+/args
+/bin
+/.kube-secrets
+/tmp/*
+/dev
+
+*.coverprofile
+*.html
+.vscode
+.idea
+.DS_Store
+
+# Virtual go & fuse
+.virtualgo
+.fuse_hidden*
+
+*.sw[pq]
