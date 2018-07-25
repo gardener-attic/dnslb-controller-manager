@@ -43,7 +43,7 @@ func main() {
 		os.Exit(0)
 	}()
 
-	command := app.NewCommandStartGardenRingControllerManager(os.Stdout, os.Stderr, ctx)
+	command := app.NewCommandStartDNSLBControllerManager(os.Stdout, os.Stderr, ctx)
 	if err := command.Execute(); err != nil {
 		os.Exit(1)
 	}

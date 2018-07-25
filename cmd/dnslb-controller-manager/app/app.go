@@ -24,8 +24,8 @@ import (
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
 )
 
-// NewCommandStartGardenRingControllerManager creates a *cobra.Command object with default parameters.
-func NewCommandStartGardenRingControllerManager(out, errOut io.Writer, ctx context.Context) *cobra.Command {
+// NewCommandStartDNSLBControllerManager creates a *cobra.Command object with default parameters.
+func NewCommandStartDNSLBControllerManager(out, errOut io.Writer, ctx context.Context) *cobra.Command {
 
 	ctx, cli := config.NewCLIConfig(ctx)
 
@@ -56,6 +56,7 @@ hosting the DNS loadbalancer and endpoint resources.`,
 	cmd.PersistentFlags().StringVarP(&cli.LevelString, "log-level", "D", "info", "log level")
 	cmd.PersistentFlags().IntVarP(&cli.Interval, "interval", "", 30, "DNS check/update interval in seconds")
 	cmd.PersistentFlags().IntVarP(&cli.Port, "port", "", 0, "http server endpoint port for health-check (default: 0=no server)")
+	cmd.PersistentFlags().StringVarP(&cli.PluginDir, "plugin-dir", "", "", "directory containing go plugins for DNS provider types")
 
 	return cmd
 }

@@ -44,6 +44,7 @@ type CLIConfig struct {
 	Duration    int
 	Controllers string
 	Cluster     string
+	PluginDir   string
 
 	Interval int // DNS check interval
 	Port     int // server port for http endpoints

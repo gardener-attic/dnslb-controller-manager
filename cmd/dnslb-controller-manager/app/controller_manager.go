@@ -135,6 +135,9 @@ func NewControllerManager(ctx context.Context) (*ControllerManager, error) {
 
 func (this *ControllerManager) Run() {
 
+	if this.cli_config.PluginDir != "" {
+		controller.LoadPlugins(this.cli_config.PluginDir)
+	}
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(this.clientset, 30*time.Second)
 	lbInformerFactory := informers.NewSharedInformerFactory(this.targetset, 30*time.Second)
 

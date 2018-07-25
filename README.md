@@ -109,6 +109,7 @@ Flags:
       --kubeconfig string    path to the kubeconfig file
   -D, --log-level string     log level (default "info")
       --once                 only one update instread of loop
+      --plugin-dir string    directory containing go plugins for DNS provider types
       --port int             http server endpoint port for health-check (default: 0=no server)
       --providers string     Selection mode for DNS providers (static,dynamic,all,<type name>) (default "dynamic")
       --targetkube string    path to the kubeconfig file for shared virtual cluster
@@ -176,6 +177,9 @@ spec:
 For every provider type multiple provider (with different credentials)
 may be configured by deploying the appropriate `DNSProvider` resources.
 
+Additional provider types can be added by go plugins (see below).
+Plugins are enabled by specifying the `--plugin-dir` option.
+
 ### AWS Route53 
 
 The AWS Route53 provider type is selected by using the type name `aws`.
@@ -219,3 +223,24 @@ It supports five metrics:
 |`loadbalancer_dnsnames`| | DNS names of a load balancer with health status |
 | |`loadbalancer`| Load balancer name |
 | |`dnsname`| DNS name of the load balancer |
+
+## Plugins
+
+Go plugins can be used to add new independently developed DNS provider types.
+The plugins must be placed in a dedicated folder, which is specified 
+by the `--plugin-dir`  option
+
+A DNS provider type must implement the 
+[`DNSProviderType`](pkg/controller/dns/provider/type.go#L27) interface found in package 
+`github.com/gardener/dnslb-controller-manager/pkg/controller/dns/provider`.
+
+The main package must provide a variable called `Name` of type `string` containing
+the name of the plugin. To register a provider type it has to implement an
+`init` function registering the provided provider types. For example:
+
+		func init() {
+			provider.RegisterProviderType("aws", &AWSProviderType{})
+		}
+		
+The specified name can then be used in the `DNSProvider` kubernetes resources
+to add a dedicated set of hosted zones handled by this provider type.

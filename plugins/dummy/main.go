@@ -12,32 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package main
 
 import (
-	"os"
+	"github.com/sirupsen/logrus"
 )
 
-func ContainsString(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
+var Name = "dummy"
 
-func IsDirectory(path string) (bool, error) {
-	fi, err := os.Stat(path)
-	return fi.IsDir(), err
-}
-
-func IsFile(path string) (bool, error) {
-	fi, err := os.Stat(path)
-	if err == nil {
-		if fi.Mode().IsRegular() {
-			return true, nil
-		}
-	}
-	return false, err
+func init() {
+	logrus.Infof("dummy plugin loaded")
 }

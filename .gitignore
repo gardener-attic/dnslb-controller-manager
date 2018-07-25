@@ -17,3 +17,4 @@
 .fuse_hidden*
 
 *.sw[pq]
+*.so
