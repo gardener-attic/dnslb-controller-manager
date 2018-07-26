@@ -145,7 +145,7 @@ func (this *Controller) IsSingleton(lb *lbapi.DNSLoadBalancer) (bool, error) {
 		singleton = true
 	case lbapi.LBTYPE_BALANCED:
 		singleton = false
-	case "":
+	case "": // fill-in default
 		newlb := lb.DeepCopy()
 		if singleton {
 			newlb.Spec.Type = lbapi.LBTYPE_EXCLUSIVE
@@ -156,11 +156,14 @@ func (this *Controller) IsSingleton(lb *lbapi.DNSLoadBalancer) (bool, error) {
 		this.Infof("adapt lb type for %s/%s", newlb.GetNamespace(), newlb.GetName())
 		this.UpdateLB(lb, newlb)
 	default:
-		newlb := lb.DeepCopy()
-		newlb.Status.State = "Error"
-		newlb.Status.Message = "invalid load balancer type"
-		this.UpdateLB(lb, newlb)
-		return false, fmt.Errorf("invalid load balancer type")
+		msg := "invalid load balancer type"
+		if lb.Status.Message != msg || lb.Status.State != "Error" {
+			newlb := lb.DeepCopy()
+			newlb.Status.State = "Error"
+			newlb.Status.Message = msg
+			this.UpdateLB(lb, newlb)
+		}
+		return false, fmt.Errorf(msg)
 	}
 	return singleton, nil
 }
