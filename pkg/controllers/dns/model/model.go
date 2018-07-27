@@ -19,10 +19,10 @@ import (
 	"sync"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
 
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/dns/provider"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/provider"
 
 	"k8s.io/client-go/tools/record"
 )
@@ -40,14 +40,14 @@ type Model struct {
 	requests map[string][]*ChangeRequest
 
 	recorder  record.EventRecorder
-	clientset *controller.Clientset
+	clientset clientset.Interface
 
 	providers map[string]*Registration
 
 	ForRegistrations RegistrationIterator
 }
 
-func NewModel(cfg *config.CLIConfig, recorder record.EventRecorder, clientset *controller.Clientset,
+func NewModel(cfg *config.CLIConfig, recorder record.EventRecorder, clientset clientset.Interface,
 	logctx log.LogCtx) *Model {
 	m := &Model{}
 	m.LogCtx = logctx

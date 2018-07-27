@@ -25,6 +25,8 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
+
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
 )
 
 type SchemeAdder func(*runtime.Scheme)
@@ -82,7 +84,7 @@ type _EventRecorder struct {
 	sent map[ObjectRef]*Event
 }
 
-func NewEventRecorder(logctx log.LogCtx, agentName string, clientset *Clientset, adder ...SchemeAdder) record.EventRecorder {
+func NewEventRecorder(logctx log.LogCtx, agentName string, clientset clientset.Interface, adder ...SchemeAdder) record.EventRecorder {
 	for _, a := range adder {
 		a(scheme.Scheme)
 	}

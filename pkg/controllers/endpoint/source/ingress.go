@@ -25,8 +25,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	lbapi "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/endpoint/util"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/util"
 
 	"github.com/sirupsen/logrus"
 )
@@ -36,7 +36,7 @@ func init() {
 }
 
 type IngressHandler struct {
-	clientset *controller.Clientset
+	clientset clientset.Interface
 	informer  informers.IngressInformer
 	synced    cache.InformerSynced
 	lister    listers.IngressLister
@@ -88,7 +88,7 @@ func (this *IngressType) GetKind() string {
 	return "Ingress"
 }
 
-func (this *IngressType) NewHandler(clientset *controller.Clientset,
+func (this *IngressType) NewHandler(clientset clientset.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory) SourceTypeHandler {
 	informer := kubeInformerFactory.Extensions().V1beta1().Ingresses()
 
@@ -136,7 +136,7 @@ func (this *Ingress) GetEndpoint(lb *lbapi.DNSLoadBalancer) (ip, cname string) {
 	return
 }
 
-func (this *Ingress) Update(clientset *controller.Clientset) error {
+func (this *Ingress) Update(clientset clientset.Interface) error {
 	_, err := clientset.ExtensionsV1beta1().Ingresses(this.GetNamespace()).Update(this.Ingress)
 	return err
 }

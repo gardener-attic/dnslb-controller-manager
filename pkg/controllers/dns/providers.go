@@ -22,9 +22,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	lbapi "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller/dns/model"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/dns/provider"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/dns/util"
+	"github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/model"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/provider"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/util"
 	"github.com/gardener/dnslb-controller-manager/pkg/k8s"
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/healthz"

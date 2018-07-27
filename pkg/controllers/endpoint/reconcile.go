@@ -22,8 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	lbapi "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller/endpoint/source"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/endpoint/util"
+	"github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/source"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/util"
 )
 
 // Operation Contract:

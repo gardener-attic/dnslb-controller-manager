@@ -20,7 +20,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/gardener/dnslb-controller-manager/pkg/controller"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/tools/leaderelection"
 	"github.com/sirupsen/logrus"
@@ -32,9 +32,9 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
-type StartFunc func(clientset *controller.Clientset, ctx context.Context)
+type StartFunc func(clientset clientset.Interface, ctx context.Context)
 
-func StartWithLease(msg string, clientset *controller.Clientset, ctx context.Context, f StartFunc) error {
+func StartWithLease(msg string, clientset clientset.Interface, ctx context.Context, f StartFunc) error {
 	logrus.Infof("requesting lease for %s", msg)
 	recorder := createRecorder(clientset)
 	leaderElectionConfig, err := makeLeaderElectionConfig(clientset, recorder)
@@ -61,14 +61,14 @@ func StartWithLease(msg string, clientset *controller.Clientset, ctx context.Con
 	return nil
 }
 
-func createRecorder(kubeClient *controller.Clientset) record.EventRecorder {
+func createRecorder(kubeClient clientset.Interface) record.EventRecorder {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(logrus.Debugf)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: typedcorev1.New(kubeClient.CoreV1().RESTClient()).Events("")})
 	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "dnslb-controller-manager"})
 }
 
-func makeLeaderElectionConfig(clientset *controller.Clientset, recorder record.EventRecorder) (*leaderelection.LeaderElectionConfig, error) {
+func makeLeaderElectionConfig(clientset clientset.Interface, recorder record.EventRecorder) (*leaderelection.LeaderElectionConfig, error) {
 	hostname, err := os.Hostname()
 	hostname = fmt.Sprintf("%s/%d", hostname, os.Getpid())
 	if err != nil {

@@ -12,39 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package source
 
 import (
-	"os"
+	"context"
+	"time"
+
+	informers "k8s.io/client-go/informers"
+
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/groups"
 )
 
-func ContainsString(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
+var Name = "source"
+
+func init() {
+	groups.GetType(Name).SetActivator(new)
 }
 
-func AppendString(s []string, e string) ([]string, bool) {
-	if ContainsString(s, e) {
-		return s, false
-	}
-	return append(s, e), true
+func new(g *groups.Group, ctx context.Context) (groups.GroupData, context.Context, error) {
+	d := &GroupData{}
+	d.informerFactory = informers.NewSharedInformerFactory(g.GetClientset(), 30*time.Second)
+	ctx = context.WithValue(ctx, g.GetName()+"InformerFactory", d.informerFactory)
+	return d, ctx, nil
 }
 
-func IsDirectory(path string) (bool, error) {
-	fi, err := os.Stat(path)
-	return fi.IsDir(), err
+type GroupData struct {
+	informerFactory informers.SharedInformerFactory
 }
 
-func IsFile(path string) (bool, error) {
-	fi, err := os.Stat(path)
-	if err == nil {
-		if fi.Mode().IsRegular() {
-			return true, nil
-		}
-	}
-	return false, err
-}
+var _ groups.GroupData = &GroupData{}

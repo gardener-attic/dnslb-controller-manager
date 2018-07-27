@@ -16,12 +16,15 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/groups"
 )
 
 // NewCommandStartDNSLBControllerManager creates a *cobra.Command object with default parameters.
@@ -43,7 +46,6 @@ hosting the DNS loadbalancer and endpoint resources.`,
 	}
 
 	cmd.PersistentFlags().StringVarP(&cli.Kubeconfig, "kubeconfig", "", "", "path to the kubeconfig file")
-	cmd.PersistentFlags().StringVarP(&cli.TargetKube, "targetkube", "", "", "path to the kubeconfig file for shared virtual cluster")
 	cmd.PersistentFlags().StringVarP(&cli.Watches, "watches", "", "", "config file for watches")
 	cmd.PersistentFlags().StringVarP(&cli.Ident, "identity", "", "GardenRing", "DNS record identifer")
 	cmd.PersistentFlags().StringVarP(&cli.Controllers, "controllers", "", "all", "Comma separated list of controllers to start (<name>,source,target,all)")
@@ -58,12 +60,13 @@ hosting the DNS loadbalancer and endpoint resources.`,
 	cmd.PersistentFlags().IntVarP(&cli.Port, "port", "", 0, "http server endpoint port for health-check (default: 0=no server)")
 	cmd.PersistentFlags().StringVarP(&cli.PluginDir, "plugin-dir", "", "", "directory containing go plugins for DNS provider types")
 
+	groups.ConfigureCommand(cmd, cli)
 	return cmd
 }
 
 func run(ctx context.Context) error {
 
-	err := config.Get(ctx).Validate()
+	err := Validate(config.Get(ctx))
 	if err != nil {
 		return err
 	}
@@ -73,5 +76,33 @@ func run(ctx context.Context) error {
 		return err
 	}
 	cm.Run()
+	return nil
+}
+
+func Validate(this *config.CLIConfig) error {
+	if !this.HasConfigs() && this.Cluster != "" {
+		return fmt.Errorf("cluster identity not possible when not using a separate clusters")
+	}
+	if this.HasConfigs() && this.Cluster == "" {
+		return fmt.Errorf("cluster identity (for local cluster) required when using a separate clusters")
+	}
+	var err error
+	this.EffectiveControllers, err = groups.GetControllerNames(this.Controllers)
+	logrus.Infof("selected controllers: %v", this.EffectiveControllers)
+	if err != nil {
+		return err
+	}
+	l, err := strconv.Atoi(this.LevelString)
+	if err != nil {
+		this.LogLevel, err = logrus.ParseLevel(this.LevelString)
+		if err != nil {
+			return err
+		}
+	} else {
+		if l < 0 || l > 5 {
+			return fmt.Errorf("log level must be in the range 0-5")
+		}
+		this.LogLevel = logrus.Level(l)
+	}
 	return nil
 }

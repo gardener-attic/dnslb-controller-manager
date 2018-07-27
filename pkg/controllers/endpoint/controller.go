@@ -31,8 +31,10 @@ import (
 	lbv1beta1informers "github.com/gardener/dnslb-controller-manager/pkg/client/informers/externalversions/loadbalancer/v1beta1"
 	lblisters "github.com/gardener/dnslb-controller-manager/pkg/client/listers/loadbalancer/v1beta1"
 	"github.com/gardener/dnslb-controller-manager/pkg/controller"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller/endpoint/source"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/endpoint/util"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/groups"
+	"github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/source"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/util"
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/healthz"
 	"github.com/gardener/dnslb-controller-manager/pkg/tools/workqueue"
@@ -51,11 +53,15 @@ import (
 const controllerAgentName = "dnselb-endpoint-controller"
 const threadiness = 3
 
+func init() {
+	groups.GetType("source").AddController("endpoint", Run)
+}
+
 type Controller struct {
 	log.LogCtx
 	clusterid  string
-	clientset  *controller.Clientset
-	virtualset *controller.Clientset
+	clientset  clientset.Interface
+	virtualset clientset.Interface
 
 	lbInformer lbv1beta1informers.DNSLoadBalancerInformer
 	lbSynced   cache.InformerSynced
@@ -72,22 +78,32 @@ type Controller struct {
 	workqueue workqueue.RateLimitingInterface
 }
 
-func NewController(clientset *controller.Clientset, ctx context.Context) *Controller {
+func NewController(cs clientset.Interface, ctx context.Context) *Controller {
 	cli_config := config.Get(ctx)
-	logctx := log.NewLogContext("controller", "enpoint")
-	virtualset := ctx.Value("virtualset").(*controller.Clientset)
-	kubeInformerFactory := ctx.Value("kubeInformerFactory").(kubeinformers.SharedInformerFactory)
-	lbInformerFactory := ctx.Value("lbInformerFactory").(lbinformers.SharedInformerFactory)
+	logctx := log.NewLogContext("controller", "endpoint")
+	virtualset := ctx.Value("targetClientset").(*clientset.Clientset)
+	kubeInformerFactory := ctx.Value("sourceInformerFactory").(kubeinformers.SharedInformerFactory)
+	lbInformerFactory := ctx.Value("targetInformerFactory").(lbinformers.SharedInformerFactory)
+
+	if virtualset == nil {
+		panic("targetClientset not set in context")
+	}
+	if kubeInformerFactory == nil {
+		panic("sourceInformerFactory not set in context")
+	}
+	if lbInformerFactory == nil {
+		panic("targetInformerFactory not set in context")
+	}
 	lbInformer := lbInformerFactory.Loadbalancer().V1beta1().DNSLoadBalancers()
 	epInformer := lbInformerFactory.Loadbalancer().V1beta1().DNSLoadBalancerEndpoints()
 
-	sources := source.NewSources(clientset, kubeInformerFactory)
-	recorder := controller.NewEventRecorder(logctx, controllerAgentName, clientset, lbscheme.AddToScheme)
+	sources := source.NewSources(cs, kubeInformerFactory)
+	recorder := controller.NewEventRecorder(logctx, controllerAgentName, cs, lbscheme.AddToScheme)
 
 	controller := &Controller{
 		LogCtx:     logctx,
 		clusterid:  cli_config.Cluster,
-		clientset:  clientset,
+		clientset:  cs,
 		virtualset: virtualset,
 		workqueue:  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "EndpointSources"),
 		sources:    sources,
@@ -321,7 +337,10 @@ func (this *Controller) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func Run(clientset *controller.Clientset, ctx context.Context) error {
+/////////////////////////////////////////////////////////////////////////////////
+// Controller main function
+
+func Run(clientset clientset.Interface, ctx context.Context) error {
 	logrus.Infof("running loadbalancer endpoint controller")
 	c := NewController(clientset, ctx)
 	return c.Run(ctx.Done())
