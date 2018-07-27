@@ -22,7 +22,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	lbapi "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
 	"github.com/gardener/dnslb-controller-manager/pkg/k8s"
 
 	"github.com/sirupsen/logrus"
@@ -46,7 +46,7 @@ func NewSourceId(kind, namespace, name string) SourceId {
 
 type SourceType interface {
 	GetKind() string
-	NewHandler(*controller.Clientset, kubeinformers.SharedInformerFactory) SourceTypeHandler
+	NewHandler(clientset.Interface, kubeinformers.SharedInformerFactory) SourceTypeHandler
 }
 
 var types = map[reflect.Type]SourceType{}
@@ -82,7 +82,7 @@ type Source interface {
 	GetKind() string
 	GetEndpoint(lb *lbapi.DNSLoadBalancer) (IPAddress, CName string)
 	Validate(lb *lbapi.DNSLoadBalancer) (bool, error)
-	Update(*controller.Clientset) error
+	Update(clientset.Interface) error
 }
 
 type SourceTypeHandler interface {
@@ -99,21 +99,21 @@ type Sources interface {
 }
 
 type GenericHandler struct {
-	clientset      *controller.Clientset
+	clientset      clientset.Interface
 	handlersByType map[reflect.Type]SourceTypeHandler
 	handlersByKind map[string]SourceTypeHandler
 }
 
 var _ Sources = &GenericHandler{}
 
-func NewSources(clientset *controller.Clientset,
+func NewSources(clientset clientset.Interface,
 	informerfactory kubeinformers.SharedInformerFactory) Sources {
 
 	h := &GenericHandler{}
 	return h.new(clientset, informerfactory)
 }
 
-func (this *GenericHandler) new(clientset *controller.Clientset,
+func (this *GenericHandler) new(clientset clientset.Interface,
 	informerfactory kubeinformers.SharedInformerFactory) *GenericHandler {
 
 	this.clientset = clientset

@@ -18,8 +18,8 @@ import (
 	"fmt"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller/dns/provider"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/dns/provider"
+	"github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/provider"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/provider"
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
 	. "github.com/gardener/dnslb-controller-manager/pkg/utils"
 

@@ -19,15 +19,15 @@ import (
 	"time"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
 
-	"github.com/gardener/dnslb-controller-manager/pkg/controller"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-func RegisterCrds(clientset controller.Interface) error {
+func RegisterCrds(clientset clientset.Interface) error {
 	err := CreateCRD(clientset, api.LoadBalancerCRDName, api.LoadBalancerResourceKind, api.LoadBalancerResourcePlural, "dnslb")
 	if err != nil {
 		return fmt.Errorf("failed to create CRD: %v", err)
@@ -55,7 +55,7 @@ func RegisterCrds(clientset controller.Interface) error {
 	return nil
 }
 
-func CreateCRD(clientset controller.Interface, crdName, rkind, rplural, shortName string) error {
+func CreateCRD(clientset clientset.Interface, crdName, rkind, rplural, shortName string) error {
 	crd := &apiextensionsv1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: crdName,
@@ -80,7 +80,7 @@ func CreateCRD(clientset controller.Interface, crdName, rkind, rplural, shortNam
 	return nil
 }
 
-func WaitCRDReady(clientset controller.Interface, crdName string) error {
+func WaitCRDReady(clientset clientset.Interface, crdName string) error {
 	err := wait.PollImmediate(5*time.Second, 60*time.Second, func() (bool, error) {
 		crd, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crdName, metav1.GetOptions{})
 		if err != nil {

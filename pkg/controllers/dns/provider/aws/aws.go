@@ -19,7 +19,7 @@ import (
 	"sync"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/dns/provider"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/provider"
 	. "github.com/gardener/dnslb-controller-manager/pkg/utils"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/log"

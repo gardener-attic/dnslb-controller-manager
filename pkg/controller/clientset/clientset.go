@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package clientset
 
 import (
 	loadbalancerv1beta1 "github.com/gardener/dnslb-controller-manager/pkg/client/clientset/versioned/typed/loadbalancer/v1beta1"

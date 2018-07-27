@@ -25,8 +25,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	lbapi "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/endpoint/util"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/util"
 
 	"github.com/sirupsen/logrus"
 )
@@ -36,7 +36,7 @@ func init() {
 }
 
 type ServiceHandler struct {
-	clientset *controller.Clientset
+	clientset clientset.Interface
 	informer  informers.ServiceInformer
 	synced    cache.InformerSynced
 	lister    listers.ServiceLister
@@ -88,7 +88,7 @@ func (this *ServiceType) GetKind() string {
 	return "Service"
 }
 
-func (this *ServiceType) NewHandler(clientset *controller.Clientset,
+func (this *ServiceType) NewHandler(clientset clientset.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory) SourceTypeHandler {
 	informer := kubeInformerFactory.Core().V1().Services()
 
@@ -130,7 +130,7 @@ func (this *Service) GetEndpoint(lb *lbapi.DNSLoadBalancer) (ip, cname string) {
 	return
 }
 
-func (this *Service) Update(clientset *controller.Clientset) error {
+func (this *Service) Update(clientset clientset.Interface) error {
 	_, err := clientset.CoreV1().Services(this.GetNamespace()).Update(this.Service)
 	return err
 }

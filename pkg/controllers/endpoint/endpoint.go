@@ -19,8 +19,8 @@ import (
 	"strings"
 
 	lbapi "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller/endpoint/source"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/endpoint/util"
+	"github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/source"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/util"
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

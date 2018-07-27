@@ -12,39 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package controller
 
 import (
-	"os"
+	_ "github.com/gardener/dnslb-controller-manager/pkg/controller/groups/source"
+	_ "github.com/gardener/dnslb-controller-manager/pkg/controller/groups/target"
 )
-
-func ContainsString(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
-func AppendString(s []string, e string) ([]string, bool) {
-	if ContainsString(s, e) {
-		return s, false
-	}
-	return append(s, e), true
-}
-
-func IsDirectory(path string) (bool, error) {
-	fi, err := os.Stat(path)
-	return fi.IsDir(), err
-}
-
-func IsFile(path string) (bool, error) {
-	fi, err := os.Stat(path)
-	if err == nil {
-		if fi.Mode().IsRegular() {
-			return true, nil
-		}
-	}
-	return false, err
-}

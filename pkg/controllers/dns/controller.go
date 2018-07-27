@@ -22,14 +22,16 @@ import (
 	"time"
 
 	// builtin provider type initialization
-	_ "github.com/gardener/dnslb-controller-manager/pkg/controller/dns/provider/aws"
+	_ "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/provider/aws"
 
 	lbscheme "github.com/gardener/dnslb-controller-manager/pkg/client/clientset/versioned/scheme"
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
 	"github.com/gardener/dnslb-controller-manager/pkg/controller"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/dns/model"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller/dns/provider"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controller/dns/util"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/groups"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/model"
+	"github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/provider"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/util"
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/healthz"
 	"github.com/gardener/dnslb-controller-manager/pkg/tools/workqueue"
@@ -52,11 +54,15 @@ import (
 const controllerAgentName = "dns-loadbalancer-controller"
 const threadiness = 2
 
+func init() {
+	groups.GetType("target").AddController("dns", Run)
+}
+
 type Controller struct {
 	log.LogCtx
 	watches    string
 	lock       sync.Mutex
-	clientset  *controller.Clientset
+	clientset  clientset.Interface
 	cli_config *config.CLIConfig
 
 	prInformer lbv1beta1informers.DNSProviderInformer
@@ -77,13 +83,18 @@ type Controller struct {
 	started   time.Time
 }
 
-func NewController(clientset *controller.Clientset, ctx context.Context) *Controller {
+func NewController(clientset clientset.Interface, ctx context.Context) *Controller {
 	cli_config := config.Get(ctx)
 	logctx := log.NewLogContext("controller", "dns")
 
 	if cli_config.Watches == "" {
 		logctx.Infof("using in cluster scan for load balancer resources")
-		lbInformerFactory := ctx.Value("lbInformerFactory").(lbinformers.SharedInformerFactory)
+		lbInformerFactory := ctx.Value("targetInformerFactory").(lbinformers.SharedInformerFactory)
+
+		if lbInformerFactory == nil {
+			panic("targetInformerFactory not set in context")
+		}
+
 		lbInformer := lbInformerFactory.Loadbalancer().V1beta1().DNSLoadBalancers()
 		epInformer := lbInformerFactory.Loadbalancer().V1beta1().DNSLoadBalancerEndpoints()
 		prInformer := lbInformerFactory.Loadbalancer().V1beta1().DNSProviders()
@@ -400,7 +411,10 @@ func (this *Controller) UpdateDNS(model *Model) {
 	}
 }
 
-func Run(clientset *controller.Clientset, ctx context.Context) error {
+/////////////////////////////////////////////////////////////////////////////////
+// Controller main function
+
+func Run(clientset clientset.Interface, ctx context.Context) error {
 
 	c := NewController(clientset, ctx)
 	return c.Run(ctx.Done())
