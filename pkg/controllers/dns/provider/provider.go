@@ -18,6 +18,9 @@ import (
 	"fmt"
 	"sync"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1/scope"
 	. "github.com/gardener/dnslb-controller-manager/pkg/utils"
 )
 
@@ -39,6 +42,7 @@ type DNSProvider interface {
 type Registration struct {
 	name string
 	DNSProvider
+	access scope.AccessControl
 }
 
 func (this *Registration) GetName() string {
@@ -46,6 +50,13 @@ func (this *Registration) GetName() string {
 }
 func (this *Registration) GetProvider() DNSProvider {
 	return this.DNSProvider
+}
+func (this *Registration) SetAccessControl(access scope.AccessControl) {
+	this.access = access
+}
+
+func (this *Registration) ValidFor(obj metav1.Object) bool {
+	return this.access == nil || this.access.ValidFor(obj)
 }
 
 var _ DNSProvider = &Registration{}
@@ -56,17 +67,18 @@ var (
 )
 
 func NewRegistration(name string, provider DNSProvider) *Registration {
-	return &Registration{name, provider}
+	return &Registration{name, provider, nil}
 }
 
-func RegisterProvider(name string, provider DNSProvider) *Registration {
+func RegisterProvider(name string, provider DNSProvider, access scope.AccessControl) *Registration {
 	lock.Lock()
 	defer lock.Unlock()
 
 	if provider == nil {
 		return nil
 	}
-	reg := &Registration{name, provider}
+	reg := &Registration{name, provider, nil}
+	reg.SetAccessControl(access)
 	providers[name] = reg
 	return reg
 }

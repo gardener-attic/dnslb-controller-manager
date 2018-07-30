@@ -19,5 +19,7 @@ metadata:
   namespace: garden
 spec:
   type: aws
+  scope:
+    type: Namespace
   secretRef:
     name: route53

@@ -20,18 +20,59 @@ import (
 
 type StringSet map[string]struct{}
 
+func NewStringSet(a ...string) StringSet {
+	return StringSet{}.AddAll(a...)
+}
+func NewStringSetByArray(a []string) StringSet {
+	s := StringSet{}
+	if a != nil {
+		s.AddAll(a...)
+	}
+	return s
+}
 func (this StringSet) Contains(n string) bool {
 	_, ok := this[n]
 	return ok
 }
-func (this StringSet) Add(n string) {
+func (this StringSet) Add(n string) StringSet {
 	this[n] = struct{}{}
+	return this
 }
-func (this StringSet) Remove(n string) {
+func (this StringSet) Remove(n string) StringSet {
 	delete(this, n)
+	return this
 }
-func (this StringSet) AddAll(n string) {
+func (this StringSet) AddAll(n ...string) StringSet {
+	for _, p := range n {
+		this.Add(p)
+	}
+	return this
+}
+func (this StringSet) AddAllSplitted(n string) StringSet {
 	for _, p := range strings.Split(n, ",") {
 		this.Add(strings.ToLower(strings.TrimSpace(p)))
 	}
+	return this
+}
+
+func (this StringSet) Equals(set StringSet) bool {
+	for n, _ := range set {
+		if !this.Contains(n) {
+			return false
+		}
+	}
+	for n, _ := range this {
+		if !set.Contains(n) {
+			return false
+		}
+	}
+	return true
+}
+
+func (this StringSet) Copy() StringSet {
+	set := NewStringSet()
+	for n, _ := range this {
+		set[n] = struct{}{}
+	}
+	return set
 }

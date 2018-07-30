@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"sync"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
 	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
@@ -79,13 +81,13 @@ func (this *Model) Unlock() {
 	this.lock.Unlock()
 }
 
-func (this *Model) Check(name string, done DoneHandler, targets ...Target) (bool, error) {
-	return this.Exec(false, name, done, targets...)
+func (this *Model) Check(name string, obj metav1.Object, done DoneHandler, targets ...Target) (bool, error) {
+	return this.Exec(false, name, obj, done, targets...)
 }
-func (this *Model) Apply(name string, done DoneHandler, targets ...Target) (bool, error) {
-	return this.Exec(true, name, done, targets...)
+func (this *Model) Apply(name string, obj metav1.Object, done DoneHandler, targets ...Target) (bool, error) {
+	return this.Exec(true, name, obj, done, targets...)
 }
-func (this *Model) Exec(apply bool, name string, done DoneHandler, targets ...Target) (bool, error) {
+func (this *Model) Exec(apply bool, name string, obj metav1.Object, done DoneHandler, targets ...Target) (bool, error) {
 	if len(targets) == 0 {
 		return false, nil
 	}
@@ -100,6 +102,14 @@ func (this *Model) Exec(apply bool, name string, done DoneHandler, targets ...Ta
 	if info == nil {
 		done.SetInvalid()
 		return false, fmt.Errorf("no provider found for '%s'", name)
+	}
+
+	if obj != nil && !reg.ValidFor(obj) {
+		if apply {
+			delete(this.applied, name)
+		}
+		done.SetInvalid()
+		return false, fmt.Errorf("provider '%s' not valid for namespace '%s'", reg.GetName(), obj.GetNamespace())
 	}
 
 	sets, err := this.setupProvider(reg)
@@ -167,9 +177,13 @@ func (this *Model) Update() error {
 			return err
 		}
 		for _, s := range sets {
-			if _, ok := this.applied[s.Name]; !ok && s.IsOwnedBy(this.ident) {
-				for ty := range s.Sets {
-					this.addDeleteRequest(reg, s, ty)
+			_, ok := this.applied[s.Name]
+			if !ok {
+				if s.IsOwnedBy(this.ident) {
+					this.Infof("found unapplied managed set '%s'", s.Name)
+					for ty := range s.Sets {
+						this.addDeleteRequest(reg, s, ty)
+					}
 				}
 			}
 		}

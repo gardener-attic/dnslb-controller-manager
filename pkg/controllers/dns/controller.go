@@ -292,7 +292,7 @@ func (this *Controller) registerDefaultProvider(reg *provider.TypeRegistration) 
 		this.Errorf("no default provider for provider type %s: %s", reg.GetName(), err)
 	} else {
 		this.Infof("registering default provider for aws")
-		provider.RegisterProvider(name, p)
+		provider.RegisterProvider(name, p, nil)
 	}
 	return nil
 }

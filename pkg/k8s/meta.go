@@ -70,6 +70,6 @@ func SplitObjectKey(key string) (kind, namespace, name string, err error) {
 	return "", "", "", fmt.Errorf("unexpected key format: %q", key)
 }
 
-func Desc(obj Object) string {
+func Desc(obj metav1.Object) string {
 	return fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
 }

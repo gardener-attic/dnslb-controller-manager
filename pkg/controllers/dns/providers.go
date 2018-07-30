@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	lbapi "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
+	"github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1/scope"
 	"github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/model"
 	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/provider"
 	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/util"
@@ -191,14 +192,34 @@ func (this *Worker) processNextWorkItem() bool {
 }
 
 func (this *Worker) handleReconcile(pr *lbapi.DNSProvider) (bool, error) {
-	if !HasFinalizer(pr) {
-		this.Infof("set finalizer for %s", k8s.Desc(pr))
-		SetFinalizer(pr)
+	access, mod, err := scope.Eval(pr, &pr.Spec.Scope, this.LogCtx)
+
+	if err != nil {
+		pr.Status.State = "Error"
+		if pr.Status.Message != err.Error() {
+			this.Errorf("provider %s failed: %s", k8s.Desc(pr), err)
+			pr.Status.Message = err.Error()
+			this.controller.UpdateProvider(pr)
+			mod = true
+		}
+	} else {
+		if !HasFinalizer(pr) {
+			this.Infof("set finalizer for %s", k8s.Desc(pr))
+			SetFinalizer(pr)
+			mod = true
+		}
+	}
+	if mod {
+		this.Infof("update provider %s (%s)", k8s.Desc(pr), pr.Spec.Scope)
 		_, err := this.controller.UpdateProvider(pr)
 		if err != nil {
 			return true, err
 		}
 	}
+	if err != nil {
+		return true, err
+	}
+
 	name := fmt.Sprintf("%s/%s", pr.GetNamespace(), pr.GetName())
 	old := GetRegistration(name)
 	if old != nil {
@@ -222,6 +243,8 @@ func (this *Worker) handleReconcile(pr *lbapi.DNSProvider) (bool, error) {
 			// update by unregister and recreate provider instance
 			oldCfg := old.GetConfig()
 			if oldCfg.Equals(newCfg) {
+				old.SetAccessControl(access)
+				this.setActive(pr)
 				return true, nil
 			}
 			this.Infof("detecting config change for provider '%s':", name)
@@ -243,14 +266,19 @@ func (this *Worker) handleReconcile(pr *lbapi.DNSProvider) (bool, error) {
 		}
 		return false, err
 	}
+	this.setActive(pr)
 	this.Infof("register new %s provider '%s'", pr.Spec.Type, name)
+	RegisterProvider(name, prov, access)
+	return true, nil
+}
+
+func (this *Worker) setActive(pr *lbapi.DNSProvider) {
 	if pr.Status.State != "Active" {
+		this.Infof("set provider '%s' to active", k8s.Desc(pr))
 		pr.Status.State = "Active"
 		pr.Status.Message = ""
 		this.controller.UpdateProvider(pr)
 	}
-	RegisterProvider(name, prov)
-	return true, nil
 }
 
 func (this *Worker) handleDelete(pr *lbapi.DNSProvider) (bool, error) {

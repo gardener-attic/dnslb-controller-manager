@@ -167,7 +167,7 @@ func (w *Watch) Handle(m *Model) {
 
 	if w.Singleton {
 		for _, target := range w.Targets {
-			mod, err := m.Check(w.DNS, done, target)
+			mod, err := m.Check(w.DNS, w.DNSLB, done, target)
 			if err != nil {
 				m.Errorf("error handling %s: %s", w.DNS, err)
 			}
@@ -213,7 +213,7 @@ func (w *Watch) Handle(m *Model) {
 			}
 		}
 	}
-	mod, err := m.Apply(w.DNS, done, healthyTargets...)
+	mod, err := m.Apply(w.DNS, w.DNSLB, done, healthyTargets...)
 	if err != nil {
 		if done.IsInvalid() {
 			done.Failed(err)

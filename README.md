@@ -133,6 +133,7 @@ spec:
   type: Balanced # or Exclusive
   healthPath:  /healthz
   statusCode: 200 # default
+  endpointValidityInterval: 5m # Optional
 status:
   active:
     - ipaddress: "172.18.117.33"
@@ -140,6 +141,11 @@ status:
   state: healthy
   message:
 ```
+
+If the optional endpoint validity interval is specified, the endpoint
+controller generates endpoints with a limited lifetime, and updates
+it accordingly as long as it is running. The dns controller automatically
+discards outdated endpoint resources.
 
 ### DNS Load Balancer Endpoint
 
@@ -158,6 +164,10 @@ status:
   validUntil: 2018-07-24T11:34:44Z
 ```
 
+The `validUtil` status property is managed by the
+endpoint controller, if the loadbalancer resource requests it
+by specifying a validity interval for endpoints.
+ 
 ### DNS Provider
 
 ```
@@ -168,9 +178,21 @@ metadata:
   namespace: acme
 spec:
   type: aws
+  scope: 
+    type: Selected  # or Cluster/Namespace
+    namespaces:
+	  - acme
   secretRef:
     name: route53
 ```
+
+A provider may only be used for a load balancer resource if it is in the scope
+of the provider. The following scopes are supported:
+
+- `Cluster`: (default) valid for all namespaces in kubernetes cluster
+- `Namespace`: only valid for the namespace of the provider resource
+- `Selected`: valid for the explicitly managed namespace list in property `namespaces`
+
 
 ## Supported DNS Provider Types
 
