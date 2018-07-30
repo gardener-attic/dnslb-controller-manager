@@ -56,12 +56,12 @@ func (this StringSet) AddAllSplitted(n string) StringSet {
 }
 
 func (this StringSet) Equals(set StringSet) bool {
-	for n, _ := range set {
+	for n := range set {
 		if !this.Contains(n) {
 			return false
 		}
 	}
-	for n, _ := range this {
+	for n := range this {
 		if !set.Contains(n) {
 			return false
 		}
@@ -71,7 +71,7 @@ func (this StringSet) Equals(set StringSet) bool {
 
 func (this StringSet) Copy() StringSet {
 	set := NewStringSet()
-	for n, _ := range this {
+	for n := range this {
 		set[n] = struct{}{}
 	}
 	return set

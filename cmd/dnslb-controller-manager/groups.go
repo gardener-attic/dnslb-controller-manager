@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package app
+package main
 
 import (
-	// import and load the controllers for the controller manager
-	_ "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns"
-	_ "github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint"
+	// import and load group definition for this controller manager
+	_ "github.com/gardener/dnslb-controller-manager/pkg/controller/groups/source"
+	_ "github.com/gardener/dnslb-controller-manager/pkg/controller/groups/target"
 )
