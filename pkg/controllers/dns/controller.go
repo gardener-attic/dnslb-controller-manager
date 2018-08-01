@@ -34,6 +34,7 @@ import (
 	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/util"
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/healthz"
+	"github.com/gardener/dnslb-controller-manager/pkg/server/metrics"
 	"github.com/gardener/dnslb-controller-manager/pkg/tools/workqueue"
 	. "github.com/gardener/dnslb-controller-manager/pkg/utils"
 
@@ -371,6 +372,7 @@ func (this *Controller) runDNSUpdater(stopCh <-chan struct{}) error {
 	initial <- time.Now()
 
 	var timeout <-chan time.Time = initial
+
 	for {
 		select {
 		case _, ok := <-stopCh:
@@ -380,12 +382,17 @@ func (this *Controller) runDNSUpdater(stopCh <-chan struct{}) error {
 			}
 		case _, ok := <-timeout:
 			if ok {
+				metrics.ReportStartDNSReconcile()
 				this.UpdateDNS(model)
 				if this.cli_config.Once {
 					return nil
 				}
+				d := this.cli_config.Interval - metrics.ReportDoneDNSReconcile()
+				if d <= 0 {
+					d = 1
+				}
 				healthz.Tick("dns")
-				timeout = time.After(time.Duration(this.cli_config.Interval) * time.Second)
+				timeout = time.After(time.Duration(d) * time.Second)
 			} else {
 				return nil
 			}

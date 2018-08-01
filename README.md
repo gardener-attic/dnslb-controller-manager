@@ -243,8 +243,10 @@ It supports five metrics:
 |`loadbalancer_health`| | Health status of a load balancer (0/1) |
 | |`loadbalancer`| Load balancer name |
 |`loadbalancer_dnsnames`| | DNS names of a load balancer with health status |
-| |`loadbalancer`| Load balancer name |
+| |`loadbalancer`| Load balancer name |dns_reconcile_duration
 | |`dnsname`| DNS name of the load balancer |
+| `dns_reconcile_duration` | | Duration of a DNS reconcilation run |
+| `dns_reconcile_interval` | | Duration between two DNS reconcilations |
 
 ## Plugins
 

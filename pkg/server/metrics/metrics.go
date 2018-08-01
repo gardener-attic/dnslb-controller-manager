@@ -15,6 +15,8 @@
 package metrics
 
 import (
+	"time"
+
 	//"github.com/sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -26,6 +28,8 @@ func init() {
 	prometheus.MustRegister(EndpointActive)
 	prometheus.MustRegister(LoadBalancers)
 	prometheus.MustRegister(LoadBalancerDNS)
+	prometheus.MustRegister(DNSReconciler)
+	prometheus.MustRegister(DNSReconcileTime)
 }
 
 var (
@@ -87,6 +91,37 @@ var (
 func ReportLB(key, dns string, active bool) {
 	setActive(LoadBalancers.WithLabelValues(key), active)
 	setActive(LoadBalancerDNS.WithLabelValues(key, dns), active)
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+var (
+	lastReconcile time.Time
+	DNSReconciler = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "dns_reconcile_interval",
+			Help: "duration between two DNS reconcilations",
+		},
+	)
+	DNSReconcileTime = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "dns_reconcile_duration",
+			Help: "duration of a DNS reconcilation run",
+		},
+	)
+)
+
+func ReportStartDNSReconcile() {
+	now := time.Now()
+	if !lastReconcile.IsZero() {
+		DNSReconciler.Set(float64(now.Sub(lastReconcile) / time.Second))
+	}
+	lastReconcile = now
+}
+
+func ReportDoneDNSReconcile() int {
+	d := time.Now().Sub(lastReconcile) / time.Second
+	DNSReconcileTime.Set(float64(d))
+	return int(d)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
