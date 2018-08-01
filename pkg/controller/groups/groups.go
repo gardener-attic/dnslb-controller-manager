@@ -17,11 +17,16 @@ package groups
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	restclient "k8s.io/client-go/rest"
+	clientcmd "k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
 
@@ -57,8 +62,10 @@ func ConfigureCommand(cmd *cobra.Command, cli_config *config.CLIConfig) {
 	for n, t := range types {
 		if t.configopt != "" {
 			logrus.Infof("config option '%s' for '%s'", t.configopt, n)
-			p := cli_config.GetConfig(n)
-			cmd.PersistentFlags().StringVarP(&p.Path, t.configopt, "", "", "path to the "+n+" kubeconfig file")
+			p, new := cli_config.AddConfig(t.configopt)
+			if new {
+				cmd.PersistentFlags().StringVarP(&p.Path, t.configopt, "", "", "path to the "+n+" kubeconfig file")
+			}
 		}
 	}
 }
@@ -88,6 +95,10 @@ func GetType(name string) *GroupType {
 
 func (this *GroupType) GetName() string {
 	return this.name
+}
+
+func (this *GroupType) GetConfigOption() string {
+	return this.configopt
 }
 
 func (this *GroupType) GetControllers() map[string]Controller {
@@ -132,6 +143,77 @@ type Groups struct {
 	inactive map[string]*Group
 	sets     []*StartupSet
 	ctx      context.Context
+}
+
+func (this *Groups) SetupClientsets(cli_config *config.CLIConfig) error {
+	var kubeconfig *restclient.Config
+	var err error
+
+	// use the current context in kubeconfig
+	if cli_config.Kubeconfig == "" {
+		cli_config.Kubeconfig = os.Getenv("KUBECONFIG")
+	}
+
+	if cli_config.Kubeconfig == "" {
+		logrus.Infof("no config -> using in cluster config")
+		kubeconfig, err = restclient.InClusterConfig()
+	} else {
+		logrus.Infof("using explicit config '%s'", cli_config.Kubeconfig)
+		var config *clientcmdapi.Config
+		config, err = clientcmd.LoadFromFile(cli_config.Kubeconfig)
+		if err == nil {
+			kubeconfig, err = clientcmd.NewDefaultClientConfig(*config, &clientcmd.ConfigOverrides{}).ClientConfig()
+		}
+	}
+	if err != nil {
+		logrus.Infof("cannot setup kube rest client: %s", err)
+		return err
+	}
+
+	// create the clientset
+	logrus.Infof("creating clientset")
+	defaultset, err := clientset.NewForConfig(kubeconfig)
+	if err != nil {
+		return err
+	}
+
+	clientsetByOption := map[string]clientset.Interface{}
+	clientsetByPath := map[string]clientset.Interface{}
+	clientsetByOption[""] = defaultset
+	if cli_config.Kubeconfig != "" {
+		clientsetByPath[cli_config.Kubeconfig] = defaultset
+	}
+
+	var cs clientset.Interface
+	for n, t := range GetTypes() {
+		cs = defaultset
+		g := this.GetGroup(n)
+		opt := t.GetConfigOption()
+		if opt != "" {
+			cfg := cli_config.GetConfig(opt)
+			if cfg.Path != "" {
+				logrus.Infof("separate config for %s cluster: %s", n, cfg.Path)
+				cs = clientsetByOption[opt]
+				if cs == nil {
+					cs = clientsetByPath[cfg.Path]
+					if cs == nil {
+						target, err := clientcmd.BuildConfigFromFlags("", cfg.Path)
+						if err != nil {
+							return err
+						}
+						cs, err = clientset.NewForConfig(target)
+						if err != nil {
+							return err
+						}
+						clientsetByPath[cfg.Path] = cs
+					}
+					clientsetByOption[opt] = cs
+				}
+			}
+		}
+		g.SetClientset(cs)
+	}
+	return nil
 }
 
 func Activate(active []string) *Groups {

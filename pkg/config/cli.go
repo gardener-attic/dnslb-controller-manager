@@ -58,12 +58,17 @@ func NewCLIConfig(ctx context.Context) (context.Context, *CLIConfig) {
 }
 
 func (this *CLIConfig) GetConfig(name string) *ConfigPath {
+	return this.Configs[name]
+}
+
+func (this *CLIConfig) AddConfig(name string) (*ConfigPath, bool) {
 	c := this.Configs[name]
 	if c == nil {
 		c = &ConfigPath{}
 		this.Configs[name] = c
+		return c, true
 	}
-	return c
+	return c, false
 }
 
 func (this *CLIConfig) HasConfigs() bool {

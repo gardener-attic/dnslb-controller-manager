@@ -17,22 +17,16 @@ package app
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
 	"github.com/gardener/dnslb-controller-manager/pkg/controller"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
 	"github.com/gardener/dnslb-controller-manager/pkg/controller/groups"
 	"github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/model"
 	"github.com/gardener/dnslb-controller-manager/pkg/server"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/healthz"
-
-	restclient "k8s.io/client-go/rest"
-	clientcmd "k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 type ControllerManager struct {
@@ -66,54 +60,11 @@ func NewControllerManager(ctx context.Context) (*ControllerManager, error) {
 	}
 	logrus.Info("setting up controller manager...")
 
-	// use the current context in kubeconfig
-	if cli_config.Kubeconfig == "" {
-		cli_config.Kubeconfig = os.Getenv("KUBECONFIG")
-	}
-
-	var kubeconfig *restclient.Config
-	var err error
-	if cli_config.Kubeconfig == "" {
-		logrus.Infof("no config -> using in cluster config")
-		kubeconfig, err = restclient.InClusterConfig()
-	} else {
-		logrus.Infof("using explicit config '%s'", cli_config.Kubeconfig)
-		var config *clientcmdapi.Config
-		config, err = clientcmd.LoadFromFile(cli_config.Kubeconfig)
-		if err == nil {
-			kubeconfig, err = clientcmd.NewDefaultClientConfig(*config, &clientcmd.ConfigOverrides{}).ClientConfig()
-		}
-	}
-	if err != nil {
-		logrus.Infof("cannot setup kube rest client: %s", err)
-		return nil, err
-	}
-
-	// create the clientset
-	logrus.Infof("creating clientset")
-	defaultset, err := clientset.NewForConfig(kubeconfig)
+	err := grps.SetupClientsets(cli_config)
 	if err != nil {
 		return nil, err
 	}
 
-	for n := range groups.GetTypes() {
-		g := grps.GetGroup(n)
-		cfg := cli_config.GetConfig(n)
-		if cfg.Path != "" {
-			logrus.Infof("separate config for %s cluster: %s", n, cfg.Path)
-			target, err := clientcmd.BuildConfigFromFlags("", cfg.Path)
-			if err != nil {
-				return nil, err
-			}
-			targetset, err := clientset.NewForConfig(target)
-			if err != nil {
-				return nil, err
-			}
-			g.SetClientset(targetset)
-		} else {
-			g.SetClientset(defaultset)
-		}
-	}
 	tgrp := grps.GetGroup("target")
 	if tgrp != nil {
 		targetset := tgrp.GetClientset()
