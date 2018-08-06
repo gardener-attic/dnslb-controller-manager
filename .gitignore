@@ -18,3 +18,4 @@
 
 *.sw[pq]
 *.so
+cmd/foo
