@@ -21,12 +21,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller"
 	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
 
 	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/provider"
-
-	"k8s.io/client-go/tools/record"
 )
 
 type DNSSets map[string]*DNSSet
@@ -41,7 +40,7 @@ type Model struct {
 	sets     map[string]DNSSets
 	requests map[string][]*ChangeRequest
 
-	recorder  record.EventRecorder
+	recorder  controller.EventRecorder
 	clientset clientset.Interface
 
 	providers map[string]*Registration
@@ -49,7 +48,7 @@ type Model struct {
 	ForRegistrations RegistrationIterator
 }
 
-func NewModel(cfg *config.CLIConfig, recorder record.EventRecorder, clientset clientset.Interface,
+func NewModel(cfg *config.CLIConfig, recorder controller.EventRecorder, clientset clientset.Interface,
 	logctx log.LogCtx) *Model {
 	m := &Model{}
 	m.LogCtx = logctx

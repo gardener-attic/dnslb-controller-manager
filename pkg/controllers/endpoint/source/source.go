@@ -53,10 +53,10 @@ var types = map[reflect.Type]SourceType{}
 
 func Register(key interface{}, stype SourceType) {
 	if t, ok := key.(reflect.Type); ok {
-		logrus.Infof("register source type %T by type", stype)
+		logrus.Infof("register endpoint source type %T by type", stype)
 		types[t] = stype
 	} else {
-		logrus.Infof("register source type %T by elem type %T", stype, key)
+		logrus.Infof("register endpoint source type %T by elem type %T", stype, key)
 		types[reflect.TypeOf(key)] = stype
 	}
 }

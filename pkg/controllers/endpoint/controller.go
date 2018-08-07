@@ -230,21 +230,32 @@ type Worker struct {
 	workqueue  workqueue.RateLimitingInterface
 }
 
-func (this *Controller) runWorker(no int) {
+func NewWorker(c *Controller, no int) *Worker {
 	w := &Worker{}
 
-	w.ctx = this.NewLogContext("worker", strconv.Itoa(no))
-	w.controller = this
-	w.workqueue = this.workqueue
+	w.ctx = c.NewLogContext("worker", strconv.Itoa(no))
+	w.LogCtx = w.ctx
+	w.controller = c
+	w.workqueue = c.workqueue
+	return w
+}
 
-	for w.processNextWorkItem() {
+func (this *Worker) Run() {
+	this.Infof("start")
+	for this.processNextWorkItem() {
 	}
+	this.Infof("stop")
 }
 
 func (this *Worker) internalErr(obj interface{}, err error) bool {
 	this.workqueue.Forget(obj)
 	this.ctx.Error(err)
 	return true
+}
+
+func (this *Worker) setResource(key string) func() {
+	this.LogCtx = this.ctx.NewLogContext("resource", key)
+	return func() { this.LogCtx = this.ctx }
 }
 
 func (this *Worker) processNextWorkItem() bool {
@@ -264,7 +275,7 @@ func (this *Worker) processNextWorkItem() bool {
 	if err != nil {
 		return this.internalErr(obj, fmt.Errorf("error syncing '%s': %s", key, err))
 	}
-	this.LogCtx = this.ctx.NewLogContext("resource", key)
+	defer this.setResource(key)()
 	id := source.NewSourceId(kind, namespace, name)
 
 	s, err := this.controller.GetSource(id)
@@ -321,7 +332,7 @@ func (this *Controller) Run(stopCh <-chan struct{}) error {
 
 	this.Debugf("Starting workers")
 	for i := 0; i < threadiness; i++ {
-		go wait.Until(func() { this.runWorker(i) }, time.Second, stopCh)
+		this.startWorker(i, stopCh)
 	}
 
 	err := this.sources.AddEventHandler(stopCh, cache.ResourceEventHandlerFuncs{
@@ -335,6 +346,10 @@ func (this *Controller) Run(stopCh <-chan struct{}) error {
 	<-stopCh
 	this.Infof("Shutting down workers")
 	return nil
+}
+
+func (this *Controller) startWorker(no int, stopCh <-chan struct{}) {
+	go wait.Until(func() { NewWorker(this, no).Run() }, time.Second, stopCh)
 }
 
 /////////////////////////////////////////////////////////////////////////////////

@@ -23,6 +23,8 @@ import (
 )
 
 type Interface interface {
+	GetConfig() *rest.Config
+
 	kubernetes.Interface
 
 	ApiextensionsV1beta1() apiextensionsv1beta1.ApiextensionsV1beta1Interface
@@ -40,6 +42,15 @@ type Clientset struct {
 	kubernetes.Interface
 	apiextensionsV1beta1 *apiextensionsv1beta1.ApiextensionsV1beta1Client
 	loadbalancerV1beta1  *loadbalancerv1beta1.LoadbalancerV1beta1Client
+
+	config *rest.Config
+}
+
+// GetConfig return the config object used fto create this clientset prior to
+// specialization. THis is inteded to create other kinds of clientsets based
+// on this clientset.
+func (c *Clientset) GetConfig() *rest.Config {
+	return c.config
 }
 
 // ApiextensionsV1beta1 retrieves the ApiextensionsV1beta1Client
@@ -74,6 +85,8 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
+
+	cs.config = c
 
 	cs.Interface, err = kubernetes.NewForConfig(c)
 	if err != nil {

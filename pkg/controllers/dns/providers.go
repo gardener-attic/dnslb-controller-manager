@@ -93,27 +93,27 @@ type Worker struct {
 	workqueue  workqueue.RateLimitingInterface
 }
 
-func NewWorker(c *Controller) *Worker {
+func NewWorker(c *Controller, no int) *Worker {
 	w := &Worker{}
-	w.LogCtx = c.LogCtx
-	w.ctx = c.LogCtx
+	w.ctx = c.Access
+	if no >= 0 {
+		w.ctx = c.Access.NewLogContext("worker", strconv.Itoa(no))
+	}
+	w.LogCtx = w.ctx
 	w.workqueue = c.workqueue
 	w.controller = c
 	return w
 }
 
-func (this *Controller) runWorker(no int) {
-	NewWorker(this).Run(no)
-}
-
 func (this *Controller) runFor(prs []*lbapi.DNSProvider) {
-	NewWorker(this).RunFor(prs)
+	NewWorker(this, -1).RunFor(prs)
 }
 
-func (this *Worker) Run(no int) {
-	this.ctx = this.NewLogContext("worker", strconv.Itoa(no))
+func (this *Worker) Run() {
+	this.Infof("start")
 	for this.processNextWorkItem() {
 	}
+	this.Infof("stop processing")
 }
 func (this *Worker) RunFor(prs []*lbapi.DNSProvider) {
 	for _, pr := range prs {
@@ -123,8 +123,13 @@ func (this *Worker) RunFor(prs []*lbapi.DNSProvider) {
 
 func (this *Worker) internalErr(obj interface{}, err error) bool {
 	this.workqueue.Forget(obj)
-	this.ctx.Error(err)
+	this.Error(err)
 	return true
+}
+
+func (this *Worker) setResource(key string) func() {
+	this.LogCtx = this.ctx.NewLogContext("resource", key)
+	return func() { this.LogCtx = this.ctx }
 }
 
 func (this *Worker) processNextWorkItem() bool {
@@ -143,7 +148,8 @@ func (this *Worker) processNextWorkItem() bool {
 	if err != nil {
 		return this.internalErr(obj, fmt.Errorf("error syncing '%s': %s", key, err))
 	}
-	this.LogCtx = this.ctx.NewLogContext("resource", key)
+
+	defer this.setResource(key)()
 
 	s, err := this.controller.GetProvider(namespace, name)
 	if err != nil {
@@ -359,11 +365,11 @@ func (this *Worker) newProvider(pr *lbapi.DNSProvider) (DNSProvider, error) {
 	if ptype == nil {
 		return nil, fmt.Errorf("unknown provider type '%s' for  %s", pr.Spec.Type, k8s.Desc(pr))
 	}
-	return ptype.NewProvider(name, this.controller.cli_config, config, this.controller.LogCtx.NewLogContext("type", pr.Spec.Type).NewLogContext("provider", name))
+	return ptype.NewProvider(name, this.controller.cli_config, config, this.controller.NewLogContext("type", pr.Spec.Type).NewLogContext("provider", name))
 }
 
 func (this *Worker) deleteRegistration(reg *Registration) error {
-	m := model.NewModel(this.controller.cli_config, this.controller.recorder, this.controller.clientset, this.LogCtx)
+	m := model.NewModel(this.controller.cli_config, this.controller.Access, this.controller.clientset, this.LogCtx)
 	m.ForRegistrations = func(f func(*Registration) error) error {
 		return f(reg)
 	}

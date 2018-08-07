@@ -25,6 +25,7 @@ import (
 
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
 	"github.com/gardener/dnslb-controller-manager/pkg/controller/groups"
+	dnssource "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/source"
 )
 
 // NewCommandStartDNSLBControllerManager creates a *cobra.Command object with default parameters.
@@ -46,7 +47,6 @@ hosting the DNS loadbalancer and endpoint resources.`,
 	}
 
 	cmd.PersistentFlags().StringVarP(&cli.Kubeconfig, "kubeconfig", "", "", "path to the kubeconfig file")
-	cmd.PersistentFlags().StringVarP(&cli.Watches, "watches", "", "", "config file for watches")
 	cmd.PersistentFlags().StringVarP(&cli.Ident, "identity", "", "GardenRing", "DNS record identifer")
 	cmd.PersistentFlags().StringVarP(&cli.Controllers, "controllers", "", "all", "Comma separated list of controllers to start (<name>,source,target,all)")
 	cmd.PersistentFlags().StringVarP(&cli.Cluster, "cluster", "", "", "Cluster identity")
@@ -61,6 +61,7 @@ hosting the DNS loadbalancer and endpoint resources.`,
 	cmd.PersistentFlags().StringVarP(&cli.PluginDir, "plugin-dir", "", "", "directory containing go plugins for DNS provider types")
 
 	groups.ConfigureCommand(cmd, cli)
+	dnssource.ConfigureCommand(cmd, cli)
 	return cmd
 }
 

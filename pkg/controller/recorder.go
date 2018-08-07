@@ -78,11 +78,18 @@ func (this *Event) String() string {
 
 /////////////////////////////////////////////////////////////////////////////////
 
+type EventRecorder interface {
+	Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...interface{})
+	Event(object runtime.Object, eventtype, reason, message string)
+}
+
 type _EventRecorder struct {
 	log.LogCtx
 	record.EventRecorder
 	sent map[ObjectRef]*Event
 }
+
+var _ EventRecorder = &_EventRecorder{}
 
 func NewEventRecorder(logctx log.LogCtx, agentName string, clientset clientset.Interface, adder ...SchemeAdder) record.EventRecorder {
 	for _, a := range adder {

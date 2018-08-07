@@ -17,7 +17,6 @@ package dns
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sync"
 	"time"
 
@@ -31,7 +30,9 @@ import (
 	"github.com/gardener/dnslb-controller-manager/pkg/controller/groups"
 	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/model"
 	"github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/provider"
-	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/util"
+	"github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/source"
+	"github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/source/configfile"
+
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/healthz"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/metrics"
@@ -46,10 +47,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 )
 
 const controllerAgentName = "dns-loadbalancer-controller"
@@ -60,8 +59,10 @@ func init() {
 }
 
 type Controller struct {
-	log.LogCtx
-	watches    string
+	source.Access
+
+	sources *source.Sources
+
 	lock       sync.Mutex
 	clientset  clientset.Interface
 	cli_config *config.CLIConfig
@@ -70,118 +71,59 @@ type Controller struct {
 	prSynced   cache.InformerSynced
 	prLister   lblisters.DNSProviderLister
 
-	lbInformer lbv1beta1informers.DNSLoadBalancerInformer
-	lbSynced   cache.InformerSynced
-	lbLister   lblisters.DNSLoadBalancerLister
-
-	epInformer lbv1beta1informers.DNSLoadBalancerEndpointInformer
-	epSynced   cache.InformerSynced
-	epLister   lblisters.DNSLoadBalancerEndpointLister
-
-	recorder record.EventRecorder
-
 	workqueue workqueue.RateLimitingInterface
 	started   time.Time
 }
 
-func NewController(clientset clientset.Interface, ctx context.Context) *Controller {
+type Access struct {
+	log.LogCtx
+	controller.EventRecorder
+}
+
+func NewController(clientset clientset.Interface, ctx context.Context) (*Controller, error) {
+	var err error
+	var sources *source.Sources
+
 	cli_config := config.Get(ctx)
 	logctx := log.NewLogContext("controller", "dns")
 
+	lbInformerFactory := ctx.Value("targetInformerFactory").(lbinformers.SharedInformerFactory)
+
+	if lbInformerFactory == nil {
+		return nil, fmt.Errorf("targetInformerFactory not set in context")
+	}
+	prInformer := lbInformerFactory.Loadbalancer().V1beta1().DNSProviders()
+	recorder := controller.NewEventRecorder(logctx, controllerAgentName, clientset, lbscheme.AddToScheme)
+
+	access := &Access{logctx, recorder}
+
 	if cli_config.Watches == "" {
-		logctx.Infof("using in cluster scan for load balancer resources")
-		lbInformerFactory := ctx.Value("targetInformerFactory").(lbinformers.SharedInformerFactory)
-
-		if lbInformerFactory == nil {
-			panic("targetInformerFactory not set in context")
+		logctx.Infof("using source plugins for determining DNS load balancers")
+		sources, err = source.CreateSources(access, clientset, cli_config, ctx)
+		if err != nil {
+			return nil, err
 		}
-
-		lbInformer := lbInformerFactory.Loadbalancer().V1beta1().DNSLoadBalancers()
-		epInformer := lbInformerFactory.Loadbalancer().V1beta1().DNSLoadBalancerEndpoints()
-		prInformer := lbInformerFactory.Loadbalancer().V1beta1().DNSProviders()
-
-		recorder := controller.NewEventRecorder(logctx, controllerAgentName, clientset, lbscheme.AddToScheme)
-
-		controller := &Controller{
-			LogCtx:     logctx,
-			clientset:  clientset,
-			cli_config: cli_config,
-
-			workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DNSProviders"),
-
-			prSynced:   prInformer.Informer().HasSynced,
-			prLister:   prInformer.Lister(),
-			prInformer: prInformer,
-
-			lbSynced:   lbInformer.Informer().HasSynced,
-			lbLister:   lbInformer.Lister(),
-			lbInformer: lbInformer,
-
-			epSynced:   epInformer.Informer().HasSynced,
-			epLister:   epInformer.Lister(),
-			epInformer: epInformer,
-
-			recorder: recorder,
-		}
-
-		lbInformerFactory.Start(ctx.Done())
-		return controller
-
 	} else {
 		logctx.Infof("using load balancer config from config file '%s'", cli_config.Watches)
-		controller := &Controller{
-			LogCtx:     logctx,
-			clientset:  clientset,
-			cli_config: cli_config,
-			watches:    cli_config.Watches,
-		}
-		return controller
+		sources = configfile.CreateSources(access, cli_config)
 	}
 
-}
+	controller := &Controller{
+		Access: access,
 
-func (this *Controller) IsSingleton(lb *lbapi.DNSLoadBalancer) (bool, error) {
-	singleton := false
-	if lb.Spec.Singleton != nil {
-		singleton = *lb.Spec.Singleton
-		if lb.Spec.Type != "" {
-			newlb := lb.DeepCopy()
-			newlb.Status.State = "Error"
-			newlb.Status.Message = "invalid load balancer type: singleton and type specicied"
-			this.UpdateLB(lb, newlb)
-			return false, fmt.Errorf("invalid load balancer type: singleton and type specicied")
-		}
-	}
-	switch lb.Spec.Type {
-	case lbapi.LBTYPE_EXCLUSIVE:
-		singleton = true
-	case lbapi.LBTYPE_BALANCED:
-		singleton = false
-	case "": // fill-in default
-		newlb := lb.DeepCopy()
-		if singleton {
-			newlb.Spec.Type = lbapi.LBTYPE_EXCLUSIVE
-		} else {
-			newlb.Spec.Type = lbapi.LBTYPE_BALANCED
-		}
-		newlb.Spec.Singleton = nil
-		this.Infof("adapt lb type for %s/%s", newlb.GetNamespace(), newlb.GetName())
-		this.UpdateLB(lb, newlb)
-	default:
-		msg := "invalid load balancer type"
-		if lb.Status.Message != msg || lb.Status.State != "Error" {
-			newlb := lb.DeepCopy()
-			newlb.Status.State = "Error"
-			newlb.Status.Message = msg
-			this.UpdateLB(lb, newlb)
-		}
-		return false, fmt.Errorf(msg)
-	}
-	return singleton, nil
-}
+		sources:    sources,
+		clientset:  clientset,
+		cli_config: cli_config,
 
-func (this *Controller) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...interface{}) {
-	this.recorder.Eventf(object, eventtype, reason, messageFmt, args...)
+		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DNSProviders"),
+
+		prSynced:   prInformer.Informer().HasSynced,
+		prLister:   prInformer.Lister(),
+		prInformer: prInformer,
+	}
+
+	lbInformerFactory.Start(ctx.Done())
+	return controller, nil
 }
 
 func (this *Controller) UpdateProvider(pr *lbapi.DNSProvider) (*lbapi.DNSProvider, error) {
@@ -196,97 +138,18 @@ func (this *Controller) GetSecret(ref *corev1.SecretReference) (*corev1.Secret, 
 	return this.clientset.CoreV1().Secrets(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
 }
 
-func (this *Controller) UpdateLB(old, new *lbapi.DNSLoadBalancer) {
-	if !reflect.DeepEqual(old, new) {
-		this.Infof("updating dns load balancer for %s/%s", new.GetNamespace(), new.GetName())
-		_, err := this.clientset.LoadbalancerV1beta1().DNSLoadBalancers(new.GetNamespace()).Update(new)
-		if err != nil {
-			this.Errorf("cannot update dns load balancer for %s/%s: %s", new.GetNamespace(), new.GetName(), err)
-		}
-	}
-}
+func (this *Controller) GetWatches() *WatchConfig {
 
-func (this *Controller) GetWatches() (*WatchConfig, error) {
-	if this.watches != "" {
-		return ReadConfig(this.watches)
-	}
-
-	config := &WatchConfig{}
-
-	lblist, err := this.lbLister.DNSLoadBalancers("").List(labels.Everything())
+	watches, err := this.sources.Get()
 	if err != nil {
-		return nil, err
+		return nil
 	}
-
-	watches := map[ObjectRef]*Watch{}
-	for _, lb := range lblist {
-		singleton, err := this.IsSingleton(lb)
-		if err != nil {
-			continue
-		}
-		w := &Watch{DNS: lb.Spec.DNSName,
-			HealthPath: lb.Spec.HealthPath,
-			Singleton:  singleton,
-			StatusCode: lb.Spec.StatusCode,
-			DNSLB:      lb.DeepCopy(),
-		}
-		this.Debugf("found DNS LB for '%s'", w.DNS)
-		watches[GetObjectRef(lb)] = w
-		config.Watches = append(config.Watches, w)
-	}
-
-	eplist, err := this.epLister.DNSLoadBalancerEndpoints("").List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-	this.Debugf("found %d endpoints", len(eplist))
-
-	now := metav1.Now()
-	for _, ep := range eplist {
-		var w *Watch
-		t := &Target_{IPAddress: ep.Spec.IPAddress, Name: ep.Spec.CName, DNSEP: ep}
-		if t.IsValid() {
-			ref := ObjectRef{Namespace: ep.Namespace, Name: ep.Spec.LoadBalancer}
-			w = watches[ref]
-			if now.Time.Before(this.started.Add(3*time.Minute)) || !this.handleCleanup(ep, w, &now) {
-				if w != nil {
-					w.Targets = append(w.Targets, t)
-					this.Debugf("found %s target '%s' for '%s'", t.GetRecordType(), t.GetHostName(), ref)
-				} else {
-					this.Errorf("no lb found for '%s'", ref)
-				}
-			}
-		} else {
-			this.Warnf("invalid %s", t)
-		}
-	}
-	return config, nil
-}
-
-func (this *Controller) handleCleanup(ep *lbapi.DNSLoadBalancerEndpoint, w *Watch, threshold *metav1.Time) bool {
-	del := false
-	if ep.Status.ValidUntil != nil {
-		if ep.Status.ValidUntil.Before(threshold) {
-			del = true
-		}
-	} else {
-		if w == nil {
-			del = true
-		}
-	}
-	if del {
-		this.clientset.LoadbalancerV1beta1().DNSLoadBalancerEndpoints(ep.GetNamespace()).Delete(ep.GetName(), &metav1.DeleteOptions{})
-		if w != nil {
-			this.recorder.Eventf(w.DNSLB, corev1.EventTypeNormal, "sync", "dns load balancer endpoint %s/%s deleted", ep.GetNamespace(), ep.GetName())
-		}
-		this.Infof("outdated dns load balancer endpoint %s/%s deleted", ep.GetNamespace(), ep.GetName())
-	}
-	return del
+	return &WatchConfig{Watches: watches}
 }
 
 func (this *Controller) registerDefaultProvider(reg *provider.TypeRegistration) error {
 	name := "default-" + reg.GetName()
-	typectx := this.LogCtx.NewLogContext("type", reg.GetName())
+	typectx := this.NewLogContext("type", reg.GetName())
 	logctx := typectx.NewLogContext("provider", name)
 	p, err := reg.NewDefaultProvider(this.cli_config, logctx)
 	if err != nil {
@@ -323,12 +186,10 @@ func (this *Controller) Run(stopCh <-chan struct{}) error {
 		}
 	}
 
-	if this.watches == "" {
-		this.Infof("Waiting for informer caches to sync")
-		if ok := cache.WaitForCacheSync(stopCh, this.prSynced, this.lbSynced, this.epSynced); !ok {
-			return fmt.Errorf("failed to wait for caches to sync")
-		}
+	if ok := cache.WaitForCacheSync(stopCh, this.prSynced); !ok {
+		return fmt.Errorf("failed to wait for caches to sync")
 	}
+	this.sources.Setup(stopCh)
 
 	if providers.Contains("all") || providers.Contains("dynamic") {
 		this.Infof("registering dynamic DNS providers...")
@@ -352,7 +213,7 @@ func (this *Controller) Run(stopCh <-chan struct{}) error {
 
 	this.Infof("Starting workers")
 	for i := 0; i < threadiness; i++ {
-		go wait.Until(func() { this.runWorker(i) }, time.Second, stopCh)
+		this.startWorker(i, stopCh)
 	}
 
 	handlers := cache.ResourceEventHandlerFuncs{
@@ -366,8 +227,12 @@ func (this *Controller) Run(stopCh <-chan struct{}) error {
 	return this.runDNSUpdater(stopCh)
 }
 
+func (this *Controller) startWorker(no int, stopCh <-chan struct{}) {
+	go wait.Until(func() { NewWorker(this, no).Run() }, time.Second, stopCh)
+}
+
 func (this *Controller) runDNSUpdater(stopCh <-chan struct{}) error {
-	model := NewModel(this.cli_config, this.recorder, this.clientset, this.LogCtx)
+	model := NewModel(this.cli_config, this.Access, this.clientset, this.Access)
 	initial := make(chan time.Time, 1)
 	initial <- time.Now()
 
@@ -401,20 +266,20 @@ func (this *Controller) runDNSUpdater(stopCh <-chan struct{}) error {
 }
 
 func (this *Controller) UpdateDNS(model *Model) {
-	config, err := this.GetWatches()
-	if err == nil {
-		this.lock.Lock()
-		defer this.lock.Unlock()
-		model.Reset()
-		for _, watch := range config.Watches {
-			watch.Handle(model)
-		}
-		err := model.Update()
-		if err != nil {
-			this.Errorf("%s", err)
-		}
-	} else {
-		this.Errorf("cannot read watch config '%s'\n", this.cli_config.Watches)
+	config := this.GetWatches()
+	if config == nil {
+		this.Infof("cannot get watches: skip")
+		return
+	}
+	this.lock.Lock()
+	defer this.lock.Unlock()
+	model.Reset()
+	for _, watch := range config.Watches {
+		watch.Handle(model)
+	}
+	err := model.Update()
+	if err != nil {
+		this.Errorf("%s", err)
 	}
 }
 
@@ -423,6 +288,9 @@ func (this *Controller) UpdateDNS(model *Model) {
 
 func Run(clientset clientset.Interface, ctx context.Context) error {
 
-	c := NewController(clientset, ctx)
+	c, err := NewController(clientset, ctx)
+	if err != nil {
+		return err
+	}
 	return c.Run(ctx.Done())
 }

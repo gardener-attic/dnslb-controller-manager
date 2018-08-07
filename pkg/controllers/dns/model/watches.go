@@ -161,7 +161,7 @@ func (w *Watch) Handle(m *Model) {
 		metrics.ReportLB(w.GetKey(), w.DNS, true)
 	} else {
 		done.SetHealthy(false)
-		ctx = m.StateInfof(w.GetKey(), w.DNS, "%s is NOT healthy", w)
+		ctx = m.StateInfof(w.DNS, "%s is NOT healthy", w)
 		metrics.ReportLB(w.GetKey(), w.DNS, false)
 	}
 
