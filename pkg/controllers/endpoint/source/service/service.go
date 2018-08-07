@@ -26,6 +26,7 @@ import (
 
 	lbapi "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
+	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/source"
 	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/util"
 
 	"github.com/sirupsen/logrus"
