@@ -23,6 +23,7 @@ import (
 
 	"github.com/gardener/dnslb-controller-manager/cmd/dnslb-controller-manager/app"
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
+	"github.com/gardener/dnslb-controller-manager/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
 
@@ -42,6 +43,11 @@ func main() {
 		logrus.Infof("process is aborted immediately")
 		os.Exit(0)
 	}()
+
+	err := plugins.HandleCommandLine("--plugin-dir", os.Args)
+	if err != nil {
+		panic(err)
+	}
 
 	command := app.NewCommandStartDNSLBControllerManager(os.Stdout, os.Stderr, ctx)
 	if err := command.Execute(); err != nil {

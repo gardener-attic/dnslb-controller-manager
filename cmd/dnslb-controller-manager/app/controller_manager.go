@@ -22,7 +22,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
-	"github.com/gardener/dnslb-controller-manager/pkg/controller"
 	"github.com/gardener/dnslb-controller-manager/pkg/controller/groups"
 	"github.com/gardener/dnslb-controller-manager/pkg/controllers/dns/model"
 	"github.com/gardener/dnslb-controller-manager/pkg/server"
@@ -94,10 +93,6 @@ func NewControllerManager(ctx context.Context) (*ControllerManager, error) {
 }
 
 func (this *ControllerManager) Run() {
-
-	if this.cli_config.PluginDir != "" {
-		controller.LoadPlugins(this.cli_config.PluginDir)
-	}
 
 	this.grps.Start()
 

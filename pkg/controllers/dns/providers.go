@@ -313,6 +313,18 @@ func (this *Worker) handleDelete(pr *lbapi.DNSProvider) (bool, error) {
 		if err != nil {
 			return true, err
 		}
+
+		secret, err := this.getSecret(pr)
+		if secret != nil {
+			if HasFinalizer(secret) {
+				secret = secret.DeepCopy()
+				RemoveFinalizer(secret)
+				secret, err = this.controller.UpdateSecret(secret)
+				if err != nil {
+					return true, err
+				}
+			}
+		}
 	}
 	return true, nil
 }
@@ -332,8 +344,7 @@ func (this *Worker) validate(prov DNSProvider) error {
 	})
 }
 
-func (this *Worker) getConfig(pr *lbapi.DNSProvider) (map[string]string, error) {
-	var config = map[string]string{}
+func (this *Worker) getSecret(pr *lbapi.DNSProvider) (*corev1.Secret, error) {
 	ref := pr.Spec.SecretRef
 	if ref != nil {
 		if ref.Namespace == "" {
@@ -344,6 +355,27 @@ func (this *Worker) getConfig(pr *lbapi.DNSProvider) (map[string]string, error) 
 		if err != nil {
 			return nil, fmt.Errorf("cannot get secret %s/%s for provider %s: %s",
 				ref.Namespace, ref.Name, k8s.Desc(pr), err)
+		}
+		return secret, nil
+	}
+	return nil, nil
+}
+
+func (this *Worker) getConfig(pr *lbapi.DNSProvider) (map[string]string, error) {
+	var config = map[string]string{}
+
+	secret, err := this.getSecret(pr)
+	if err != nil {
+		return nil, err
+	}
+	if secret != nil {
+		if !HasFinalizer(secret) {
+			secret = secret.DeepCopy()
+			SetFinalizer(secret)
+			secret, err = this.controller.UpdateSecret(secret)
+			if err != nil {
+				return nil, err
+			}
 		}
 		for k, v := range secret.Data {
 			config[k] = string(v)

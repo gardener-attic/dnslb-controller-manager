@@ -130,6 +130,10 @@ func (this *Controller) UpdateProvider(pr *lbapi.DNSProvider) (*lbapi.DNSProvide
 	return this.clientset.LoadbalancerV1beta1().DNSProviders(pr.GetNamespace()).Update(pr)
 }
 
+func (this *Controller) UpdateSecret(pr *corev1.Secret) (*corev1.Secret, error) {
+	return this.clientset.CoreV1().Secrets(pr.GetNamespace()).Update(pr)
+}
+
 func (this *Controller) GetProvider(namespace, name string) (*lbapi.DNSProvider, error) {
 	return this.prLister.DNSProviders(namespace).Get(name)
 }

@@ -31,11 +31,47 @@ import (
 	"github.com/gardener/dnslb-controller-manager/pkg/config"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
+	//	"github.com/gardener/dnslb-controller-manager/pkg/plugins"
 	. "github.com/gardener/dnslb-controller-manager/pkg/utils"
 )
 
+////////////////////////////////////////////////////////////////////////////
+
+/*
+func init() {
+	plugins.AddHandler(&pluginHandler{})
+}
+
+type PluginInterface func() GroupTypes
+
+type pluginHandler struct {
+}
+
+func (this *pluginHandler) HandlePlugin(p *plugins.Plugin) error {
+	v, err := p.Lookup("GetGroupTypes")
+	if err != nil {
+		logrus.Infof("loaded plugin %s does not offer group types: %s", p.GetName(), p.GetPath())
+	} else {
+		f, ok := v.(func() GroupTypes)
+		//f, ok := v.(PluginInterface)
+		if ok {
+			logrus.Infof("loaded plugin %s does offer group types: %s", p.GetName(), p.GetPath())
+			MergeTypes(f())
+		} else {
+			logrus.Errorf("loaded plugin %s has invalid GetGroupTypes: %s (%T)", p.GetName(), p.GetPath(), v)
+			return fmt.Errorf("loaded plugin %s has invalid GetGroupTypes: %s (%T)", p.GetName(), p.GetPath(), v)
+		}
+	}
+	return nil
+}
+*/
+
+////////////////////////////////////////////////////////////////////////////
+
 type Controller func(clientset.Interface, context.Context) error
 type Activator func(group *Group, ctx context.Context) (GroupData, context.Context, error)
+
+type GroupTypes map[string]*GroupType
 
 type GroupType struct {
 	name        string
@@ -55,7 +91,7 @@ type Group struct {
 	data GroupData
 }
 
-var types = map[string]*GroupType{}
+var types = GroupTypes{}
 var lock sync.Mutex
 
 func ConfigureCommand(cmd *cobra.Command, cli_config *config.CLIConfig) {
@@ -70,7 +106,30 @@ func ConfigureCommand(cmd *cobra.Command, cli_config *config.CLIConfig) {
 	}
 }
 
-func GetTypes() map[string]*GroupType {
+func MergeTypes(newtypes GroupTypes) {
+	logrus.Infof("merging controller groups")
+	for n, m := range newtypes {
+		logrus.Infof("  found group %s", n)
+		t := GetType(n)
+
+		for cn, c := range m.controllers {
+			if _, ok := t.controllers[cn]; !ok {
+				logrus.Infof("adding controller %s to group %s", cn, n)
+				t.controllers[cn] = c
+			} else {
+				logrus.Infof("controller %s already found in group %s", cn, n)
+			}
+			if t.activator == nil {
+				t.activator = m.activator
+			}
+			if t.configopt == "" {
+				t.configopt = m.configopt
+			}
+		}
+	}
+}
+
+func GetTypes() GroupTypes {
 	lock.Lock()
 	defer lock.Unlock()
 

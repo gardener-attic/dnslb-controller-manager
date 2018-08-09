@@ -15,11 +15,22 @@
 package main
 
 import (
+	"context"
+
 	"github.com/sirupsen/logrus"
+
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
+	"github.com/gardener/dnslb-controller-manager/pkg/controller/groups"
 )
 
 var Name = "dummy"
 
 func init() {
 	logrus.Infof("dummy plugin loaded")
+	groups.GetType("dummy").AddController("dummy", Controller)
+}
+
+func Controller(clientset.Interface, context.Context) error {
+	logrus.Infof("dummy plugin started")
+	return nil
 }

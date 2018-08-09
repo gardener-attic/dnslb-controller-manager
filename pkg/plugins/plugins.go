@@ -12,20 +12,65 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package plugins
 
 import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"plugin"
+	"strings"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 
 	. "github.com/gardener/dnslb-controller-manager/pkg/utils"
 )
 
-var Plugins = map[string]*plugin.Plugin{}
+type Plugin struct {
+	*plugin.Plugin
+	name string
+	path string
+}
+
+func (this *Plugin) GetName() string {
+	return this.name
+}
+func (this *Plugin) GetPath() string {
+	return this.path
+}
+
+type Handler interface {
+	HandlePlugin(p *Plugin) error
+}
+
+var handlers = []Handler{}
+var lock sync.Mutex
+
+func AddHandler(h Handler) {
+	lock.Lock()
+	defer lock.Unlock()
+
+	handlers = append(handlers, h)
+}
+
+var plugins = map[string]*Plugin{}
+
+func addPlugin(name string, p *plugin.Plugin, path string) error {
+	lock.Lock()
+	defer lock.Unlock()
+
+	logrus.Infof("loaded plugin %s from %s", name, path)
+	pl := &Plugin{p, name, path}
+	plugins[name] = pl
+	for _, h := range handlers {
+		err := h.HandlePlugin(pl)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func LoadPlugins(dir string) error {
 	files, err := ioutil.ReadDir(dir)
@@ -46,13 +91,41 @@ func LoadPlugins(dir string) error {
 				} else {
 					name, ok := v.(*string)
 					if ok {
-						logrus.Infof("loaded plugin %s from %s", *name, path)
-						Plugins[*name] = p
+						err := addPlugin(*name, p, path)
+						if err != nil {
+							return err
+						}
+
 					} else {
-						logrus.Errorf("loaded plugin %s has invalid variable Name: %s", path)
+						logrus.Errorf("loaded plugin %s has invalid variable Name", path)
 					}
 				}
 			}
+		}
+	}
+	return nil
+}
+
+func HandleCommandLine(opt string, args []string) error {
+	i := 1
+	for i < len(args) {
+		path := ""
+		if strings.HasPrefix(args[i], opt+"=") {
+			path = args[1][len(opt)+1:]
+		} else {
+			if args[i] == opt {
+				if len(args) <= i+1 {
+					return fmt.Errorf("missing argument for %s", opt)
+				}
+				path = args[i+1]
+			}
+		}
+		if path != "" {
+			err := LoadPlugins(path)
+			if err != nil {
+				return err
+			}
+			break
 		}
 	}
 	return nil
