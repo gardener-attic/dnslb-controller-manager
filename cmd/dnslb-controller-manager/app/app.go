@@ -82,10 +82,10 @@ func run(ctx context.Context) error {
 
 func Validate(this *config.CLIConfig) error {
 	if !this.HasConfigs() && this.Cluster != "" {
-		return fmt.Errorf("cluster identity not possible when not using a separate clusters")
+		return fmt.Errorf("cluster identity not possible when not using separate clusters")
 	}
 	if this.HasConfigs() && this.Cluster == "" {
-		return fmt.Errorf("cluster identity (for local cluster) required when using a separate clusters")
+		return fmt.Errorf("cluster identity (for local cluster) required when using separate clusters")
 	}
 	var err error
 	this.EffectiveControllers, err = groups.GetControllerNames(this.Controllers)

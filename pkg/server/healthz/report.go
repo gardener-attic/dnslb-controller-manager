@@ -22,6 +22,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	CycleTime = time.Minute
+)
+
 func Tick(key string) {
 	setCheck(key)
 }
@@ -36,7 +40,7 @@ func End(key string) {
 
 var checks = map[string]time.Time{}
 var lock sync.Mutex
-var timeout = 2 * time.Minute
+var timeout = 2 * CycleTime
 
 func setCheck(key string) {
 	lock.Lock()

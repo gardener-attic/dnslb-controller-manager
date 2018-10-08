@@ -16,8 +16,6 @@ package endpoint
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -36,11 +34,9 @@ import (
 	"github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/source"
 	. "github.com/gardener/dnslb-controller-manager/pkg/controllers/endpoint/util"
 	"github.com/gardener/dnslb-controller-manager/pkg/log"
-	"github.com/gardener/dnslb-controller-manager/pkg/server/healthz"
 	"github.com/gardener/dnslb-controller-manager/pkg/tools/workqueue"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	runtimeutil "k8s.io/apimachinery/pkg/util/runtime"
@@ -219,112 +215,6 @@ func (this *Controller) DeleteEndpoint(namespace, name string) error {
 
 /////////////////////////////////////////////////////////////////////////////////
 
-// Worker describe a single threaded worker entity synchronously working
-// on requests provided by the controller workqueue
-// It is basically a single go routine with a state for subsequenet methods
-// called from this go routine
-type Worker struct {
-	log.LogCtx
-	ctx        log.LogCtx
-	controller *Controller
-	workqueue  workqueue.RateLimitingInterface
-}
-
-func NewWorker(c *Controller, no int) *Worker {
-	w := &Worker{}
-
-	w.ctx = c.NewLogContext("worker", strconv.Itoa(no))
-	w.LogCtx = w.ctx
-	w.controller = c
-	w.workqueue = c.workqueue
-	return w
-}
-
-func (this *Worker) Run() {
-	this.Infof("start")
-	for this.processNextWorkItem() {
-	}
-	this.Infof("stop")
-}
-
-func (this *Worker) internalErr(obj interface{}, err error) bool {
-	this.workqueue.Forget(obj)
-	this.ctx.Error(err)
-	return true
-}
-
-func (this *Worker) setResource(key string) func() {
-	this.LogCtx = this.ctx.NewLogContext("resource", key)
-	return func() { this.LogCtx = this.ctx }
-}
-
-func (this *Worker) processNextWorkItem() bool {
-	obj, shutdown := this.workqueue.Get()
-
-	if shutdown {
-		return false
-	}
-	healthz.Tick("endpoint")
-
-	defer this.workqueue.Done(obj)
-	key, ok := obj.(string)
-	if !ok {
-		return this.internalErr(obj, fmt.Errorf("expected string in workqueue but got %#v", obj))
-	}
-	kind, namespace, name, err := k8s.SplitObjectKey(key)
-	if err != nil {
-		return this.internalErr(obj, fmt.Errorf("error syncing '%s': %s", key, err))
-	}
-	defer this.setResource(key)()
-	id := source.NewSourceId(kind, namespace, name)
-
-	s, err := this.controller.GetSource(id)
-	if err != nil {
-		// The Service resource may no longer exist, in which case we stop
-		// processing.
-		if errors.IsNotFound(err) {
-			return this.internalErr(obj, fmt.Errorf("%s in work queue no longer exists", key))
-		} else {
-			this.Errorf("error syncing '%s': %s", key, err)
-			this.workqueue.AddRateLimited(key)
-			return true
-		}
-	} else {
-
-		s = s.DeepCopy()
-		if s.GetDeletionTimestamp() == nil {
-			ok, err = this.handleReconcile(s)
-		} else {
-			ok, err = this.handleDelete(s)
-
-		}
-		if err != nil {
-			this.controller.Eventf(s, corev1.EventTypeWarning, "sync", err.Error())
-			//runtime.HandleError(fmt.Errorf("error syncing '%s': %s", key, err))
-			if ok {
-				// some problem reported, but valid state -> rate limit
-				this.Errorf("problem syncing '%s': %s", key, err)
-				this.workqueue.AddRateLimited(key)
-			} else {
-				// object config error -> wait for new change of object
-				this.Errorf("wait for new change '%s': %s", key, err)
-				this.workqueue.WaitForChange(obj)
-			}
-		} else {
-			if ok {
-				// no error, and everything valid -> just reset rate limter
-				this.workqueue.Forget(obj)
-			} else {
-				// operation temporarily failed (no error) -> just redo operation
-				this.Infof("redo reconcile for '%s':", key)
-				this.workqueue.Add(obj)
-			}
-		}
-	}
-	this.Debugf("done with %s", key)
-	return true
-}
-
 func (this *Controller) Run(stopCh <-chan struct{}) error {
 
 	defer runtimeutil.HandleCrash()
@@ -343,6 +233,7 @@ func (this *Controller) Run(stopCh <-chan struct{}) error {
 	if err != nil {
 		return err
 	}
+	this.scheduleTasks()
 	<-stopCh
 	this.Infof("Shutting down workers")
 	return nil

@@ -127,6 +127,7 @@ func HandleCommandLine(opt string, args []string) error {
 			}
 			break
 		}
+		i++
 	}
 	return nil
 }

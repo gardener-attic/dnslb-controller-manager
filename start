@@ -29,11 +29,20 @@ case "$1" in
   -a|-b|-c) 
       CLUSTER="$(expr -- "$1" : "-\(.*\)")"
       shift;;
+  --kubeconfig)
+      export KUBECONFIG=~/k8s/CLUSTERS/"$2"
+      CLUSTER=
+      shift 2;;
 esac
-echo cluster = $CLUSTER
 
-export KUBECONFIG=~/.gex/cache/ring01/projects/garden/$CLUSTER/kubeconfig.yaml
+if [ -n "$CLUSTER" ]; then
+  echo cluster = $CLUSTER
+  export KUBECONFIG=~/.gex/cache/ring01/projects/garden/$CLUSTER/kubeconfig.yaml
+  target=(--targetkube "$GARDENCONFIG" --cluster "$CLUSTER")
+else 
+  target=()
+fi
 
-cmd=( "$DIR/dnslb-controller-manager" --kubeconfig "$KUBECONFIG" --targetkube "$GARDENCONFIG" --cluster $CLUSTER "${watch[@]}"  "$@" )
+cmd=( "$DIR/dnslb-controller-manager" --kubeconfig "$KUBECONFIG" "${target[@]}" "${watch[@]}"  "$@" )
 echo "${cmd[@]}"
 "${cmd[@]}"
