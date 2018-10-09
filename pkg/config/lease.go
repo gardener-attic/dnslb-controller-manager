@@ -22,12 +22,12 @@ import (
 
 	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
 
-	"github.com/gardener/dnslb-controller-manager/pkg/tools/leaderelection"
+	//"github.com/gardener/dnslb-controller-manager/pkg/tools/leaderelection"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	//"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
 )

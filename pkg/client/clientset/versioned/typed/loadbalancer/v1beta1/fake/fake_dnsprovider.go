@@ -61,7 +61,7 @@ func (c *FakeDNSProviders) List(opts v1.ListOptions) (result *v1beta1.DNSProvide
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1beta1.DNSProviderList{}
+	list := &v1beta1.DNSProviderList{ListMeta: obj.(*v1beta1.DNSProviderList).ListMeta}
 	for _, item := range obj.(*v1beta1.DNSProviderList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)

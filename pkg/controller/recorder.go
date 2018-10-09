@@ -29,7 +29,7 @@ import (
 	"github.com/gardener/dnslb-controller-manager/pkg/controller/clientset"
 )
 
-type SchemeAdder func(*runtime.Scheme)
+type SchemeAdder func(*runtime.Scheme) error
 
 /////////////////////////////////////////////////////////////////////////////////
 

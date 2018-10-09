@@ -61,7 +61,7 @@ func (c *FakeDNSLoadBalancers) List(opts v1.ListOptions) (result *v1beta1.DNSLoa
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1beta1.DNSLoadBalancerList{}
+	list := &v1beta1.DNSLoadBalancerList{ListMeta: obj.(*v1beta1.DNSLoadBalancerList).ListMeta}
 	for _, item := range obj.(*v1beta1.DNSLoadBalancerList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
