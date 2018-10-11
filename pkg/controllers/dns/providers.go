@@ -110,7 +110,7 @@ func (this *Controller) runFor(prs []*lbapi.DNSProvider) {
 }
 
 func (this *Worker) Run() {
-	this.Infof("start")
+	this.Infof("start processing loop")
 	for this.processNextWorkItem() {
 	}
 	this.Infof("stop processing")

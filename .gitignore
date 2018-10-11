@@ -3,6 +3,7 @@
 /args
 /bin
 /.kube-secrets
+/private
 /tmp/*
 /dev
 

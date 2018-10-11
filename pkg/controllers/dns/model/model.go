@@ -16,6 +16,9 @@ package model
 
 import (
 	"fmt"
+	"net"
+	"sort"
+	"strings"
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -117,7 +120,8 @@ func (this *Model) Exec(apply bool, name string, obj metav1.Object, done DoneHan
 	}
 
 	dnsset := sets[name]
-	newset := NewDNSSetForTargets(name, this.ttl, info, done, targets...)
+	this.Debugf("applying %d targets for %s", len(targets), name)
+	newset := this.NewDNSSetForTargets(name, dnsset, this.ttl, info, done, targets...)
 	mod := false
 	if dnsset != nil {
 		for ty, rset := range newset.Sets {
@@ -128,31 +132,38 @@ func (this *Model) Exec(apply bool, name string, obj metav1.Object, done DoneHan
 				}
 				mod = true
 			} else {
-				if !match(currset, rset) {
-					if apply {
-						this.addUpdateRequest(reg, newset, ty)
+				if MapToProvider(ty, dnsset) == MapToProvider(ty, newset) {
+					if !match(currset, rset) {
+						if apply {
+							this.addUpdateRequest(reg, newset, ty)
+						}
+						mod = true
+					} else {
+						if apply {
+							this.Debugf("records type %s up to date for %s", ty, name)
+						}
 					}
-					mod = true
 				} else {
+					mod = true
 					if apply {
-						this.Debugf("records type %s up to date for %s", ty, name)
+						this.addCreateRequest(reg, newset, ty)
+						this.addDeleteRequest(reg, dnsset, ty)
 					}
 				}
 			}
 		}
 		for ty := range dnsset.Sets {
-			if _, ok := newset.Sets[ty]; !ok && ty != "TXT" {
-				if apply {
-					this.addDeleteRequest(reg, dnsset, ty)
+			if ty != "TXT" {
+				if _, ok := newset.Sets[ty]; !ok {
+					if apply {
+						this.addDeleteRequest(reg, dnsset, ty)
+					}
+					mod = true
 				}
-				mod = true
 			}
 		}
 	} else {
 		if apply {
-			if this.ident != "" {
-				newset.SetOwner(this.ident)
-			}
 			for ty := range newset.Sets {
 				this.addCreateRequest(reg, newset, ty)
 			}
@@ -178,7 +189,7 @@ func (this *Model) Update() error {
 		for _, s := range sets {
 			_, ok := this.applied[s.Name]
 			if !ok {
-				if s.IsOwnedBy(this.ident) {
+				if this.Owns(s) {
 					this.Infof("found unapplied managed set '%s'", s.Name)
 					for ty := range s.Sets {
 						this.addDeleteRequest(reg, s, ty)
@@ -255,26 +266,69 @@ func (this *Model) addDeleteRequest(reg *Registration, dnsset *DNSSet, rtype str
 }
 func (this *Model) addChangeRequest(reg *Registration, action string, dnsset *DNSSet, rtype string) {
 	r := NewChangeRequest(action, rtype, dnsset)
-	this.requests[reg.GetName()] = append(this.requests[reg.GetName()], r)
+	if action == R_DELETE {
+		this.requests[reg.GetName()] = append([]*ChangeRequest{r}, this.requests[reg.GetName()]...)
+
+	} else {
+		this.requests[reg.GetName()] = append(this.requests[reg.GetName()], r)
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////
 // DNSSets
 
-func NewDNSSetForTargets(name string, ttl int64, info ProviderInfo, done DoneHandler, targets ...Target) *DNSSet {
+func (this *Model) Owns(set *DNSSet) bool {
+	return set.IsOwnedBy(this.ident)
+}
+
+func (this *Model) NewDNSSetForTargets(name string, base *DNSSet, ttl int64, info ProviderInfo, done DoneHandler, targets ...Target) *DNSSet {
 	set := NewDNSSet(name, info, done)
+	if base != nil {
+		txt := base.Sets["TXT"]
+		if txt != nil {
+			set.Sets["TXT"] = txt.Clone()
+		}
+	}
+
+	if base == nil || this.Owns(base) {
+		set.SetOwner(this.ident)
+		set.SetAttr(ATTR_PREFIX, TxtPrefix)
+	}
+
 	targetsets := set.Sets
+	cnames := []string{}
 	for _, t := range targets {
 		ty := t.GetRecordType()
-		rs := targetsets[ty]
-		if rs == nil {
-			rs = NewRecordSet(ty, ttl, nil)
-			targetsets[ty] = rs
+		if ty == "CNAME" && len(targets) > 1 {
+			cnames = append(cnames, t.GetHostName())
+			addrs, err := net.LookupHost(t.GetHostName())
+			if err == nil {
+				for _, addr := range addrs {
+					AddRecord(targetsets, "A", addr, ttl)
+				}
+			} else {
+				this.Errorf("cannot lookup '%s': %s", t.GetHostName(), err)
+			}
+			this.Debugf("mapping target '%s' to A records: %s", t.GetHostName(), strings.Join(addrs, ","))
+		} else {
+			AddRecord(targetsets, ty, t.GetHostName(), ttl)
 		}
-		rs.Records = append(rs.Records, &Record{t.GetHostName()})
 	}
 	set.Sets = targetsets
+	if len(cnames) > 0 && this.Owns(set) {
+		sort.Strings(cnames)
+		set.SetAttr(ATTR_CNAMES, strings.Join(cnames, ","))
+	}
 	return set
+}
+
+func AddRecord(targetsets RecordSets, ty string, host string, ttl int64) {
+	rs := targetsets[ty]
+	if rs == nil {
+		rs = NewRecordSet(ty, ttl, nil)
+		targetsets[ty] = rs
+	}
+	rs.Records = append(rs.Records, &Record{host})
 }
 
 /////////////////////////////////////////////////////////////////////////////////

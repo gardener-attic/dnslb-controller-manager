@@ -16,12 +16,14 @@ package provider
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1/scope"
 	. "github.com/gardener/dnslb-controller-manager/pkg/utils"
+	//	"github.com/sirupsen/logrus"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -131,6 +133,10 @@ type Record struct {
 	Value string
 }
 
+func (this *Record) Clone() *Record {
+	return &Record{this.Value}
+}
+
 type RecordSet struct {
 	Type    string
 	TTL     int64
@@ -142,6 +148,14 @@ func NewRecordSet(rtype string, ttl int64, records []*Record) *RecordSet {
 		records = []*Record{}
 	}
 	return &RecordSet{Type: rtype, TTL: ttl, Records: records}
+}
+
+func (this *RecordSet) Clone() *RecordSet {
+	set := &RecordSet{this.Type, this.TTL, nil}
+	for _, r := range this.Records {
+		set.Records = append(set.Records, r.Clone())
+	}
+	return set
 }
 
 func (this *RecordSet) Add(records ...*Record) *RecordSet {
@@ -168,28 +182,78 @@ type DoneHandler interface {
 	Succeeded()
 }
 
+type RecordSets map[string]*RecordSet
+
 type DNSSet struct {
 	Name string
-	Sets map[string]*RecordSet
+	Sets RecordSets
 	Info ProviderInfo
 	Done DoneHandler
 }
 
-func (this *DNSSet) IsOwnedBy(ownerid string) bool {
+const (
+	ATTR_OWNER  = "owner"
+	ATTR_PREFIX = "prefix"
+	ATTR_CNAMES = "cnames"
+)
+
+func (this *DNSSet) GetAttr(name string) string {
 	txt := this.Sets["TXT"]
-	ownerid = fmt.Sprintf("\"%s\"", ownerid)
 	if txt != nil {
+		prefix := fmt.Sprintf("\"%s=", name)
 		for _, r := range txt.Records {
-			if r.Value == ownerid {
-				return true
+			if strings.HasPrefix(r.Value, prefix) {
+				return r.Value[len(prefix) : len(r.Value)-1]
+			}
+		}
+		if name == ATTR_OWNER {
+			for _, r := range txt.Records {
+				if !strings.Contains(r.Value, "=") {
+					return r.Value[1 : len(r.Value)-1]
+				}
 			}
 		}
 	}
-	return false
+	return ""
+}
+
+func (this *DNSSet) SetAttr(name string, value string) {
+	txt := this.Sets["TXT"]
+	if txt == nil {
+		records := []*Record{&Record{Value: fmt.Sprintf("\"%s=%s\"", name, value)}}
+		this.Sets["TXT"] = &RecordSet{"TXT", 600, records}
+	} else {
+		prefix := fmt.Sprintf("\"%s=", name)
+		for _, r := range txt.Records {
+			if !strings.Contains(r.Value, "=") {
+				if name == ATTR_OWNER {
+					r.Value = fmt.Sprintf("\"%s=%s\"", ATTR_OWNER, value)
+					return
+				} else {
+					r.Value = fmt.Sprintf("\"%s=%s\"", ATTR_OWNER, r.Value[1:len(r.Value)-1])
+				}
+			}
+		}
+		for _, r := range txt.Records {
+			if strings.HasPrefix(r.Value, prefix) {
+				//logrus.Infof("replace attr %s=$s", name, value)
+				r.Value = fmt.Sprintf("\"%s=%s\"", name, value)
+				return
+			}
+		}
+		//logrus.Infof("add attr %s=$s", name, value)
+		r := &Record{Value: fmt.Sprintf("\"%s=%s\"", name, value)}
+		txt.Records = append(txt.Records, r)
+	}
+}
+
+func (this *DNSSet) IsOwnedBy(ownerid string) bool {
+	o := this.GetAttr(ATTR_OWNER)
+	return o != "" && o == ownerid
 }
 
 func (this *DNSSet) SetOwner(ownerid string) *DNSSet {
-	this.SetRecordSet("TXT", 600, fmt.Sprintf("\"%s\"", ownerid))
+	this.SetAttr(ATTR_OWNER, ownerid)
 	return this
 }
 
@@ -223,4 +287,44 @@ type ChangeRequest struct {
 
 func NewChangeRequest(action string, rtype string, dns *DNSSet) *ChangeRequest {
 	return &ChangeRequest{Action: action, Type: rtype, DNS: dns}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Text Record Name Mapping
+////////////////////////////////////////////////////////////////////////////////
+
+var TxtPrefix = "comment-"
+
+func MapToProvider(rtype string, dnsset *DNSSet) string {
+	name := dnsset.Name
+	prefix := dnsset.GetAttr(ATTR_PREFIX)
+	if rtype == "TXT" && prefix != "" {
+		add := ""
+		if strings.HasPrefix(name, "*.") {
+			add = "*."
+			name = name[2:]
+		}
+		return add + prefix + name
+	}
+	return name
+}
+
+func MapFromProvider(rtype string, dnsset *DNSSet) string {
+	name := dnsset.Name
+	if rtype == "TXT" {
+		prefix := dnsset.GetAttr(ATTR_PREFIX)
+		if prefix != "" {
+			add := ""
+			if strings.HasPrefix(name, "*.") {
+				add = "*."
+				name = name[2:]
+			}
+			if strings.HasPrefix(name, prefix) {
+				return add + name[len(prefix):]
+			} else {
+				return add + name
+			}
+		}
+	}
+	return name
 }

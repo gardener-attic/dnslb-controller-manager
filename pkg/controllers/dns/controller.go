@@ -284,6 +284,8 @@ func (this *Controller) UpdateDNS(model *Model) {
 	err := model.Update()
 	if err != nil {
 		this.Errorf("%s", err)
+	} else {
+		this.Debugf("reconcile loop done")
 	}
 }
 

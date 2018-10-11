@@ -164,8 +164,8 @@ func (a *AWSProvider) ExecuteRequests(reqs []*ChangeRequest) error {
 }
 
 func (a *AWSProvider) addChange(action string, req *ChangeRequest) {
-	name := alignHostname(req.DNS.Name)
 	rtype := req.Type
+	name := alignHostname(MapToProvider(rtype, req.DNS))
 	set := req.DNS.Sets[rtype]
 	zoneid := req.DNS.Info.(*AWSProviderInfo).zoneid
 	if len(set.Records) == 0 {
@@ -255,9 +255,10 @@ func (a *AWSProvider) submitChanges() error {
 
 	for zone, changes := range a.changes {
 		limitedChanges := limitChangeSet(changes, maxChangeCount)
-		for _, changes := range limitedChanges {
+		for i, changes := range limitedChanges {
+			a.Infof("processing batch %d for zone", i+1, zone)
 			for _, c := range changes {
-				a.Infof("Desired change: %s %s %s", *c.Action, *c.ResourceRecordSet.Name, *c.ResourceRecordSet.Type)
+				a.Infof("desired change: %s %s %s", *c.Action, *c.ResourceRecordSet.Name, *c.ResourceRecordSet.Type)
 			}
 
 			params := &route53.ChangeResourceRecordSetsInput{
@@ -289,20 +290,44 @@ func (a *AWSProvider) submitChanges() error {
 }
 
 func limitChangeSet(changesByName map[string][]*Change, max int) [][]*Change {
-	limited := [][]*Change{}
+	batches := [][]*Change{}
 
-	limCs := make([]*Change, 0)
+	// add deleteion requests
+	batch := make([]*Change, 0)
 	for _, changes := range changesByName {
-		if len(limCs) > maxChangeCount-len(changes) {
-			limited = append(limited, limCs)
-			limCs = make([]*Change, 0)
+		for _, change := range changes {
+			if aws.StringValue(change.Change.Action) == route53.ChangeActionDelete {
+				batch = addLimited(change, batch, batches, max)
+			}
 		}
-		limCs = append(limCs, changes...)
 	}
-	if len(limCs) > 0 {
-		limited = append(limited, limCs)
+	if len(batch) > 0 {
+		batches = append(batches, batch)
+		batch = make([]*Change, 0)
 	}
-	return limited
+
+	// add non-deletion requests
+
+	for _, changes := range changesByName {
+		for _, change := range changes {
+			if aws.StringValue(change.Change.Action) != route53.ChangeActionDelete {
+				batch = addLimited(change, batch, batches, max)
+			}
+		}
+	}
+	if len(batch) > 0 {
+		batches = append(batches, batch)
+	}
+
+	return batches
+}
+
+func addLimited(change *Change, batch []*Change, batches [][]*Change, max int) []*Change {
+	if len(batch) >= max {
+		batches = append(batches, batch)
+		batch = make([]*Change, 0)
+	}
+	return append(batch, change)
 }
 
 func mapChanges(changes []*Change) []*route53.Change {
@@ -330,18 +355,22 @@ func (a *AWSProvider) AddAllRecords(zoneid string, dnssets map[string]*DNSSet) e
 				name = name[:len(name)-1]
 			}
 
-			dnsset := dnssets[name]
-			if dnsset == nil {
-				dnsset = NewDNSSet(name, info, nil)
-				dnssets[name] = dnsset
-			}
-
+			tmp := NewDNSSet(name, info, nil)
 			rs := NewRecordSet(rtype, aws.Int64Value(r.TTL), nil)
-			dnsset.Sets[rtype] = rs
+			tmp.Sets[rtype] = rs
 			for _, rr := range r.ResourceRecords {
 				rs.Add(&Record{Value: aws.StringValue(rr.Value)})
 			}
 
+			name = MapFromProvider(rtype, tmp)
+
+			dnsset := dnssets[name]
+			if dnsset == nil {
+				tmp.Name = name
+				dnssets[name] = tmp
+			} else {
+				dnsset.Sets[rtype] = rs
+			}
 		}
 		return true
 	}
