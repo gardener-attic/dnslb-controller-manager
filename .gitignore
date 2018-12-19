@@ -6,6 +6,7 @@
 /private
 /tmp/*
 /dev
+/local
 
 *.coverprofile
 *.html

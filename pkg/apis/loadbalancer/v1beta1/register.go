@@ -15,15 +15,17 @@
 package v1beta1
 
 import (
+	"github.com/gardener/lib/pkg/resources"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	loadbalancer "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer"
+	"github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer"
 )
 
 const (
 	Version = "v1beta1"
+	GroupName = loadbalancer.GroupName
 
 	LoadBalancerResourceKind   = "DNSLoadBalancer"
 	LoadBalancerResourcePlural = "dnsloadbalancers"
@@ -62,4 +64,10 @@ func addKnownTypes(s *runtime.Scheme) error {
 	)
 	metav1.AddToGroupVersion(s, SchemeGroupVersion)
 	return nil
+}
+
+
+func init() {
+
+	resources.Register(SchemeBuilder)
 }
