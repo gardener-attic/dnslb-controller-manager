@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources"
-	"github.com/gardener/lib/pkg/utils"
 	"github.com/gardener/lib/pkg/logger"
 	"github.com/gardener/lib/pkg/resources"
 	api "k8s.io/api/core/v1"
@@ -21,16 +20,16 @@ type SourceType struct {
 var _ sources.Source = &Source{}
 
 func init() {
-	sources.Register(&SourceType{NewGroupKind(api.GroupName,"Service")})
+	sources.Register(&SourceType{resources.NewGroupKind(api.GroupName,"Service")})
 }
 
 func (this *SourceType) GetGroupKind() schema.GroupKind{
 	return this.GroupKind
 }
 
-func (this *SourceType) Get(obj resources.Object) (source.Source, error) {
+func (this *SourceType) Get(obj resources.Object) (sources.Source, error) {
 	if obj.GroupKind()!=this.GroupKind {
-		return nil fmt.Errorf("invalid object type %q", obj.GroupKind())
+		return nil,fmt.Errorf("invalid object type %q", obj.GroupKind())
 	}
 	return &Source{resources.Service(obj)}, nil
 }
@@ -55,7 +54,7 @@ func (this *Source) Validate(lb resources.Object) (bool, error) {
 		return false, err
 	}
 	if !ok {
-		return true, fmt.Errorf("load balancer not yet assigned for '%s'", Ref(this))
+		return true, fmt.Errorf("load balancer not yet assigned for '%s'", this.ObjectName())
 	}
 	return true, nil
 }
