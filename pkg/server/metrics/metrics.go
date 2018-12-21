@@ -15,11 +15,15 @@
 package metrics
 
 import (
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"time"
 
 	//"github.com/sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/gardener/lib/pkg/resources"
+	"github.com/gardener/lib/pkg/server"
+
 )
 
 func init() {
@@ -30,6 +34,10 @@ func init() {
 	prometheus.MustRegister(LoadBalancerDNS)
 	prometheus.MustRegister(DNSReconciler)
 	prometheus.MustRegister(DNSReconcileTime)
+
+
+	server.RegisterHandler("/metrics", promhttp.Handler())
+
 }
 
 var (
@@ -66,8 +74,8 @@ var (
 	)
 )
 
-func ReportActiveEndpoint(lb, key string, active bool) {
-	setActive(EndpointActive.WithLabelValues(lb, key), active)
+func ReportActiveEndpoint(lb, key resources.ObjectName, active bool) {
+	setActive(EndpointActive.WithLabelValues(lb.String(), key.String()), active)
 }
 
 /////////////////////////////////////////////////////////////////////////////////

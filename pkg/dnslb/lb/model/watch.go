@@ -7,7 +7,6 @@ import (
 
 	//api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
-	"github.com/gardener/dnslb-controller-manager/pkg/k8s"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/metrics"
 	"github.com/gardener/lib/pkg/logger"
 	"net/http"
@@ -40,7 +39,7 @@ func (t *Target) GetRecordType() string {
 
 func (t *Target) GetKey() string {
 	if t.DNSEP != nil {
-		return k8s.Desc(t.DNSEP)
+		return t.DNSEP.ObjectName().String()
 	}
 	return t.GetHostName()
 }

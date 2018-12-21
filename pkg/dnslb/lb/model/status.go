@@ -22,7 +22,6 @@ import (
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 
-	"github.com/gardener/dnslb-controller-manager/pkg/k8s"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/metrics"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -176,7 +175,7 @@ func (this *DNSDone) _updateEndpointStatus(ep *lbutils.DNSLoadBalancerEndpointOb
 		}
 	}
 
-	metrics.ReportActiveEndpoint(k8s.Desc(this.dnslb), k8s.Desc(ep), active)
+	metrics.ReportActiveEndpoint(this.dnslb.ObjectName(), ep.ObjectName(), active)
 }
 
 ///////////////////////////////////////
