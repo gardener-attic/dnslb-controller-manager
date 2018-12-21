@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources"
-	"github.com/gardener/lib/pkg/logger"
 	"github.com/gardener/lib/pkg/resources"
 	api "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,7 +34,7 @@ func (this *SourceType) Get(obj resources.Object) (sources.Source, error) {
 }
 
 
-func (this *Source) GetTargets(logger logger.LogContext, lb resources.Object) (ip, cname string) {
+func (this *Source) GetTargets(lb resources.Object) (ip, cname string) {
 	status:=this.Status()
 	for _, i := range status.LoadBalancer.Ingress {
 		if i.IP != "" {
@@ -45,7 +44,7 @@ func (this *Source) GetTargets(logger logger.LogContext, lb resources.Object) (i
 			cname=i.Hostname
 		}
 	}
-	return "",""
+	return
 }
 
 func (this *Source) Validate(lb resources.Object) (bool, error) {
@@ -55,6 +54,10 @@ func (this *Source) Validate(lb resources.Object) (bool, error) {
 	}
 	if !ok {
 		return true, fmt.Errorf("load balancer not yet assigned for '%s'", this.ObjectName())
+	}
+	cname, ip := this.GetTargets(lb)
+	if cname == "" && ip == "" {
+		return false, fmt.Errorf("no host rule or loadbalancer status defined for '%s'", this.ObjectName())
 	}
 	return true, nil
 }

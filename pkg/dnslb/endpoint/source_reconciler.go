@@ -3,6 +3,7 @@ package endpoint
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources"
@@ -11,6 +12,7 @@ import (
 	"github.com/gardener/lib/pkg/logger"
 	"github.com/gardener/lib/pkg/controllermanager/controller"
 	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile"
+	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile/reconcilers"
 
 	dnsutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 
@@ -20,8 +22,9 @@ import (
 )
 
 type source_reconciler struct {
-	baseReconciler
+	*reconcilers.SlaveAccess
 	lb_resource resources.Interface
+	ep_resource resources.Interface
 }
 
 
@@ -35,9 +38,11 @@ func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
 	if err != nil {
 		return nil,err
 	}
+
 	return &source_reconciler{
-		baseReconciler: baseReconciler{controller: c, ep_resource:ep},
+		SlaveAccess: reconcilers.NewSlaveAccess(c,"endpoint", SlaveResources),
 		lb_resource: lb,
+		ep_resource: ep,
 	}, nil
 }
 
@@ -45,7 +50,7 @@ func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
 
 
 func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources.Object) reconcile.Status {
-	ep:=this.lookupEndpoint(obj.ClusterKey())
+	ep:=this.AssertSingleSlave(logger,obj.ClusterKey(),this.LookupSlaves(obj.ClusterKey()))
 	ref,src:=this.IsValid(obj)
 	if ref != nil {
 		logger.Debugf("HANDLE reconcile %s for %s", obj.ObjectName(), ref)
@@ -54,24 +59,24 @@ func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources
 			this.deleteEndpoint(logger, src, ep)
 			return result
 		}
-		err:=this.controller.SetFinalizer(obj)
+		err:=this.SetFinalizer(obj)
 		if err != nil {
 			return reconcile.Delay(logger,err)
 		}
 		newep := this.newEndpoint(logger, lb, src)
 		if ep==nil {
 			logger.Infof("endpoint not found -> create it")
-			ep, err:=this.ep_resource.Create(newep.Data())
+			err:=this.CreateSlave(src,newep)
 			if err != nil {
 				return reconcile.Delay(logger, fmt.Errorf("error creating load balancer endpoint: %s", err))
 			}
 			src.Eventf(corev1.EventTypeNormal, "sync", "dns load balancer endpoint %s created", ep.ObjectName())
-			return reconcile.Succeeded(logger)
+			return reconcile.Succeeded(logger).RescheduleAfter(60*time.Second)
 		}
-		mod := this.updateEndpoint(logger, ep, newep, lb)
+		mod := this.updateEndpoint(logger, ep, newep, lb, src)
 		if mod.Modified {
 			logger.Infof("endpoint found, but requires update")
-			err := mod.Update()
+			err := this.UpdateSlave(mod.Object())
 			if err != nil {
 				if errors.IsConflict(err) {
 					return reconcile.Repeat(logger,fmt.Errorf("conflict updating load balancer endpoint '%s': %s", ep.ObjectName(), err))
@@ -82,12 +87,13 @@ func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources
 		} else {
 			logger.Debugf("endpoint up to date")
 		}
+		return reconcile.Succeeded(logger).RescheduleAfter(60*time.Second)
 	} else {
 		err := this.deleteEndpoint(logger, obj, ep)
 		if err != nil {
 			return reconcile.Delay(logger,err)
 		}
-		return reconcile.DelayOnError(logger, this.controller.RemoveFinalizer(obj))
+		return reconcile.DelayOnError(logger, this.RemoveFinalizer(obj))
 	}
 	return reconcile.Succeeded(logger)
 }
@@ -105,7 +111,7 @@ func (this *source_reconciler) IsValid(obj resources.Object) (resources.ObjectNa
 				case 2:
 					return resources.NewObjectName(parts[0], parts[1]), src
 				default:
-					if this.controller.HasFinalizer(obj) {
+					if this.HasFinalizer(obj) {
 						return nil,src
 					}
 					return nil, nil
@@ -136,13 +142,20 @@ func (this *source_reconciler) validate(logger logger.LogContext, ref resources.
 
 func (this *source_reconciler) Delete(logger logger.LogContext, obj resources.Object) reconcile.Status {
 	ref, src:=this.IsValid(obj)
+	failed:=false
 	if src!=nil {
-		logger.Debugf("HANDLE delete service  %s for %s", src.ObjectName(), ref)
-		err := this.deleteEndpoint(logger, src, this.lookupEndpoint(obj.ClusterKey()))
-		if err != nil {
-			return reconcile.Delay(logger,err)
+		logger.Debugf("HANDLE delete source  %s for %s", src.ObjectName(), ref)
+		for _, ep := range this.LookupSlaves(obj.ClusterKey()) {
+			err := this.deleteEndpoint(logger, src, ep)
+			if err != nil {
+				logger.Warn(err)
+				failed=true
+			}
 		}
-		return reconcile.DelayOnError(logger, this.controller.RemoveFinalizer(obj))
+		if failed {
+			return reconcile.Delay(logger, fmt.Errorf("some endpoint deletion failed"))
+		}
+		return reconcile.DelayOnError(logger,this.RemoveFinalizer(obj))
 	}
 	return reconcile.Succeeded(logger)
 }

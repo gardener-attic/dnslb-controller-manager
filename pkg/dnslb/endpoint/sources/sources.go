@@ -1,14 +1,13 @@
 package sources
 
 import (
-	"github.com/gardener/lib/pkg/logger"
 	"github.com/gardener/lib/pkg/resources"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type Source interface {
 	resources.Object
-	GetTargets(logger logger.LogContext, lb resources.Object) (ip,cname string)
+	GetTargets(lb resources.Object) (ip,cname string)
 	Validate(lb resources.Object) (bool, error)
 }
 

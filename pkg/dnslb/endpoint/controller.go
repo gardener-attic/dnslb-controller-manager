@@ -15,50 +15,36 @@
 package endpoint
 
 import (
+	"fmt"
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"github.com/gardener/lib/pkg/controllermanager/controller"
-	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile"
 	"github.com/gardener/lib/pkg/resources"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
-
+	_ "github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources/ingress"
 	_ "github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources/service"
+	corev1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 )
 
 const AnnotationLoadbalancer = api.GroupName + "/dnsloadbalancer"
+
+var endpointGK=resources.NewGroupKind(api.GroupName, api.LoadBalancerEndpointResourceKind)
 
 func init() {
 	controller.Configure("dnslb-endpoint").
 		FinalizerDomain(api.GroupName).
 		Reconciler(EndpointReconciler).
-		Reconciler(SourceReconciler,"sources").
-		Pool("sources").ReconcilerWatch("sources", corev1.GroupName, "Service").
-		MainResource(api.GroupName,api.LoadBalancerEndpointResourceKind).
+		Reconciler(SourceReconciler, "sources").
+		WorkerPool("sources", 3, 0).ReconcilerWatch("sources", corev1.GroupName, "Service").
+		ReconcilerWatch("sources", extensions.GroupName, "Ingress").
+		MainResource(api.GroupName, api.LoadBalancerEndpointResourceKind).
 		MustRegister("source")
 }
 
-type baseReconciler struct {
-	reconcile.DefaultReconciler
-	controller  controller.Interface
-	ep_resource resources.Interface
-	slaves      *resources.SlaveCache
-}
-
-func (h *baseReconciler) Setup() {
-	h.slaves = h.controller.GetOrCreateSharedValue("slaves", h.SetupSlaveCache).(*resources.SlaveCache)
-}
-
-func (h *baseReconciler) SetupSlaveCache() interface{} {
-	cache:=resources.NewSlaveCache()
-
-	h.controller.Infof("setup endpoint owner cache")
-	list, _ := h.ep_resource.ListCached(labels.Everything())
-	cache.Setup(list)
-	h.controller.Infof("setup done")
-	return cache
-}
-
-func (this *baseReconciler) lookupEndpoint(obj resources.ClusterObjectKey) resources.Object {
-	return this.slaves.GetSlave(obj)
+func SlaveResources(c controller.Interface) []resources.Interface {
+	res, err:= c.GetDefaultCluster().Resources().Get(endpointGK)
+	if err!=nil {
+		panic(fmt.Errorf("resources type %s not found: %s", endpointGK, err))
+	}
+	return []resources.Interface{res}
 }

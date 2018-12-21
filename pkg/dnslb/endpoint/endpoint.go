@@ -4,6 +4,7 @@ import (
 	"fmt"
 	dnsutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"strings"
 	"time"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
@@ -19,18 +20,18 @@ import (
 
 func (this *source_reconciler) newEndpoint(logger logger.LogContext, lb resources.Object, src sources.Source) *dnsutils.DNSLoadBalancerEndpointObject {
 	labels := map[string]string{
-		"controller": this.controller.FinalizerName(),
+		"controller": this.FinalizerName(),
 		"source":     fmt.Sprintf("%s", src.Key()),
 	}
 	if lb.GetClusterName()!=src.GetClusterName() {
 		labels["cluster"] = fmt.Sprintf("%s", src.GetCluster().GetId())
 	}
 
-	ip, cname := src.GetTargets(logger, lb)
+	ip, cname := src.GetTargets(lb)
 	n := this.UpdateDeadline(logger, lb.Data().(*api.DNSLoadBalancer).Spec.EndpointValidityInterval, nil)
 	r,_:= this.ep_resource.Wrap(&api.DNSLoadBalancerEndpoint{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName:    src.GetName()+"-"+src.GroupKind().Kind+"-",
+			GenerateName:    src.GetName()+"-"+strings.ToLower(src.GroupKind().Kind)+"-",
 			Namespace:       lb.GetNamespace(),
 		},
 		Spec: api.DNSLoadBalancerEndpointSpec{
@@ -42,16 +43,18 @@ func (this *source_reconciler) newEndpoint(logger logger.LogContext, lb resource
 			ValidUntil: n,
 		},
 	})
+	r.AddOwner(src)
 	return dnsutils.DNSLoadBalancerEndpoint(r)
 }
 
-func (this *source_reconciler) updateEndpoint(logger logger.LogContext, oldep, newep resources.Object, lb resources.Object) *reconcile.ModificationState {
+func (this *source_reconciler) updateEndpoint(logger logger.LogContext, oldep, newep resources.Object, lb resources.Object, src sources.Source) *reconcile.ModificationState {
 	n:=dnsutils.DNSLoadBalancerEndpoint(newep).DNSLoadBalancerEndpoint()
 	o:=dnsutils.DNSLoadBalancerEndpoint(oldep).DNSLoadBalancerEndpoint()
 	mod:=reconcile.NewModificationState(logger,oldep)
 	mod.AssureLabel("controller", newep.GetLabel("controller"))
 	mod.AssureLabel("source", newep.GetLabel("source"))
 	mod.AssureLabel("cluster", newep.GetLabel("cluster"))
+	mod.AddOwners(src)
 
 	mod.AssureStringValue(&o.Spec.IPAddress, n.Spec.IPAddress)
 	mod.AssureStringValue(&o.Spec.CName, n.Spec.CName)
