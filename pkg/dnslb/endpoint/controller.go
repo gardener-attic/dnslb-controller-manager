@@ -18,6 +18,7 @@ import (
 	"fmt"
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"github.com/gardener/lib/pkg/controllermanager/controller"
+	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile/reconcilers"
 	"github.com/gardener/lib/pkg/resources"
 
 	_ "github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources/ingress"
@@ -33,11 +34,11 @@ var endpointGK=resources.NewGroupKind(api.GroupName, api.LoadBalancerEndpointRes
 func init() {
 	controller.Configure("dnslb-endpoint").
 		FinalizerDomain(api.GroupName).
-		Reconciler(EndpointReconciler).
+		MainResource(api.GroupName, api.LoadBalancerEndpointResourceKind).
+		Reconciler(reconcilers.SlaveReconcilerType("endpoint",SlaveResources,nil)).
 		Reconciler(SourceReconciler, "sources").
 		WorkerPool("sources", 3, 0).ReconcilerWatch("sources", corev1.GroupName, "Service").
 		ReconcilerWatch("sources", extensions.GroupName, "Ingress").
-		MainResource(api.GroupName, api.LoadBalancerEndpointResourceKind).
 		MustRegister("source")
 }
 

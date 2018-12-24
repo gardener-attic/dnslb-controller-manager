@@ -17,7 +17,11 @@ type SourceType interface {
 }
 
 var SourceTypes = map[schema.GroupKind]SourceType{}
+var SourceKinds = []schema.GroupKind{}
 
 func Register(src SourceType) {
+	if SourceTypes[src.GetGroupKind()] == nil {
+		SourceKinds = append(SourceKinds, src.GetGroupKind())
+	}
 	SourceTypes[src.GetGroupKind()]=src
 }
