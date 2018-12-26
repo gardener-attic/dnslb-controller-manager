@@ -5,26 +5,30 @@ import (
 	"reflect"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/lb/model"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
+
+	"github.com/mandelsoft/dns-controller-manager/pkg/dns/source"
+
 	"github.com/gardener/lib/pkg/controllermanager/controller"
 	"github.com/gardener/lib/pkg/logger"
 	"github.com/gardener/lib/pkg/resources"
 	"github.com/gardener/lib/pkg/utils"
-	"github.com/mandelsoft/dns-controller-manager/pkg/dns/source"
 )
 
 var KEY_STATE = reflect.TypeOf((*State)(nil))
 
 type DNSLBSource struct {
 	source.DefaultDNSSource
-	state *State
+	state   *State
 	started time.Time
 }
+
+var _ source.DNSSource = &DNSLBSource{}
 
 func NewDNSLBSource(c controller.Interface) (source.DNSSource, error) {
 	state := c.GetOrCreateSharedValue(KEY_STATE,
@@ -38,35 +42,35 @@ func (this *DNSLBSource) Setup() {
 	this.state.Setup()
 }
 func (this *DNSLBSource) Start() {
-	this.started=time.Now()
+	this.started = time.Now()
 }
 
-
 func (this *DNSLBSource) GetDNSInfo(logger logger.LogContext, obj resources.Object, current *source.DNSCurrentState) (*source.DNSInfo, error) {
-	targets, done:= this.GetTargets(logger, obj, current)
-	info := &source.DNSInfo{Targets: targets, Update: done}
+	targets, done := this.GetTargets(logger, obj, current)
+	info := &source.DNSInfo{Targets: targets, Feedback: done}
 	logger.Infof("GET INFO for %s", obj.ObjectName())
 	info.Names = utils.NewStringSet(obj.Data().(*api.DNSLoadBalancer).Spec.DNSName)
 	return info, nil
 }
 
-func (this *DNSLBSource) GetTargets(logger logger.LogContext, obj resources.Object, current *source.DNSCurrentState) (utils.StringSet, source.DNSStatusUpdate) {
+func (this *DNSLBSource) GetTargets(logger logger.LogContext, obj resources.Object, current *source.DNSCurrentState) (utils.StringSet, source.DNSFeedback) {
 	now := metav1.Now()
 	lb := lbutils.DNSLoadBalancer(obj)
 	spec := lb.Spec()
-	singleton, err:=this.IsSingleton(lb)
-	if err!=nil {
+	singleton, err := this.IsSingleton(lb)
+	if err != nil {
 
 	}
-	w := &model.Watch{DNS: spec.DNSName,
+	w := &model.Watch{
+		DNSName:    spec.DNSName,
 		HealthPath: spec.HealthPath,
 		Singleton:  singleton,
 		StatusCode: spec.StatusCode,
 		DNSLB:      lb.Copy(),
 	}
-	for _, o := range this.state.GetEndpoints(resources.NewObjectName(obj.GetNamespace(), obj.GetName())) {
+	for _, o := range this.state.GetEndpoints(obj.ObjectName()) {
 		e := lbutils.DNSLoadBalancerEndpoint(o)
-		ep:=e.DNSLoadBalancerEndpoint()
+		ep := e.DNSLoadBalancerEndpoint()
 		t := &model.Target{IPAddress: ep.Spec.IPAddress, Name: ep.Spec.CName, DNSEP: e}
 		if t.IsValid() {
 			if now.Time.Before(this.started.Add(3*time.Minute)) || !this.handleCleanup(logger, e, w, &now) {
@@ -78,14 +82,14 @@ func (this *DNSLBSource) GetTargets(logger logger.LogContext, obj resources.Obje
 		}
 	}
 
-	m:=model.NewModel(logger, current)
-	done:=w.Handle(m)
+	m := model.NewModel(logger, current)
+	done := w.Handle(m)
 	return m.Get(), done
 }
 
 func (this *DNSLBSource) IsSingleton(lb *lbutils.DNSLoadBalancerObject) (bool, error) {
 	singleton := false
-	spec:=lb.Spec()
+	spec := lb.Spec()
 	if spec.Singleton != nil {
 		singleton = *spec.Singleton
 		if spec.Type != "" {
@@ -126,7 +130,7 @@ func (this *DNSLBSource) IsSingleton(lb *lbutils.DNSLoadBalancerObject) (bool, e
 
 func (this *DNSLBSource) handleCleanup(logger logger.LogContext, e *lbutils.DNSLoadBalancerEndpointObject, w *model.Watch, threshold *metav1.Time) bool {
 	del := false
-	ep:=e.DNSLoadBalancerEndpoint()
+	ep := e.DNSLoadBalancerEndpoint()
 	if ep.Status.ValidUntil != nil {
 		if ep.Status.ValidUntil.Before(threshold) {
 			del = true

@@ -36,3 +36,7 @@ func (this *Model) Apply(targets... *Target) bool {
 func (this *Model) Get() utils.StringSet {
 	return this.updated
 }
+
+func (this *Model) GetDNSState(dnsname string) *source.DNSState {
+	return this.current.Names[dnsname]
+}

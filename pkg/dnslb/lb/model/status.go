@@ -16,13 +16,16 @@ package model
 
 import (
 	"fmt"
+	"github.com/mandelsoft/dns-controller-manager/pkg/dns/source"
 	"reflect"
 	"sort"
 
+	dnsapi "github.com/mandelsoft/dns-controller-manager/pkg/apis/dns/v1alpha1"
+
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
-
 	"github.com/gardener/dnslb-controller-manager/pkg/server/metrics"
+
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -30,14 +33,16 @@ type DNSDone struct {
 	dnslb     *lbutils.DNSLoadBalancerObject
 	model     *Model
 	done      bool
+	state     string
 	message   string
 	hcount    int
 	ishealthy bool
-	invalid   bool
 	active    map[string]*lbutils.DNSLoadBalancerEndpointObject
 	healthy   map[string]*lbutils.DNSLoadBalancerEndpointObject
 	unhealthy map[string]*lbutils.DNSLoadBalancerEndpointObject
 }
+
+var _ source.DNSFeedback = &DNSDone{}
 
 func NewStatusUpdate(m *Model, w *Watch) *DNSDone {
 	return &DNSDone{
@@ -49,12 +54,27 @@ func NewStatusUpdate(m *Model, w *Watch) *DNSDone {
 	}
 }
 
-func (this *DNSDone) SetInvalid() {
-	this.invalid = true
+func (this *DNSDone) Ready(dnsname string, msg string) {
+	this.state = ""
+	this.SetMessage(msg)
+}
+
+func (this *DNSDone) Pending(dnsname string, msg string) {
+	this.state = api.STATE_PENDING
+	this.SetMessage(msg)
+}
+
+func (this *DNSDone) Invalid(dnsname string, msg error) {
+	this.state = api.STATE_INVALID
+	this.SetMessage(msg.Error())
 }
 
 func (this *DNSDone) IsInvalid() bool {
-	return this.invalid
+	return this.state == api.STATE_INVALID
+}
+
+func (this *DNSDone) IsError() bool {
+	return this.state == api.STATE_ERROR
 }
 
 func (this *DNSDone) IsHealthy() bool {
@@ -102,30 +122,30 @@ func (this *DNSDone) Eventf(ty, reason string, msgfmt string, args ...interface{
 }
 
 func (this *DNSDone) Event(ty, reason string, msg string) {
-	if this.dnslb != nil {
-		this.dnslb.Event(ty, reason, msg)
-	}
+	this.dnslb.Event(ty, reason, msg)
 }
 
 func (this *DNSDone) updateStatus() {
-	if this.dnslb != nil {
-		this._updateLoadBalancerStatus(true, "")
-		for _, t := range this.healthy {
-			this._updateEndpointStatus(t, true, this.active[t.GetName()] != nil)
-		}
-		for _, t := range this.unhealthy {
-			this._updateEndpointStatus(t, false, false)
-		}
+	this._updateLoadBalancerStatus(true, "")
+	for _, t := range this.healthy {
+		this._updateEndpointStatus(t, true, this.active[t.GetName()] != nil)
+	}
+	for _, t := range this.unhealthy {
+		this._updateEndpointStatus(t, false, false)
 	}
 }
 
 func (this *DNSDone) _updateLoadBalancerStatus(activeupd bool, fail string) {
 	dnslb := this.dnslb.Copy()
-	status:=dnslb.Status()
-	if this.ishealthy {
-		status.State = "healthy"
+	status := dnslb.Status()
+	if this.state=="" {
+		if this.ishealthy {
+			status.State = "healthy"
+		} else {
+			status.State = "unreachable"
+		}
 	} else {
-		status.State = "unreachable"
+		status.State=this.state
 	}
 	status.Message = fail
 	if activeupd {
@@ -149,7 +169,7 @@ func (this *DNSDone) _updateLoadBalancerStatus(activeupd bool, fail string) {
 			status.Active = nil
 		}
 	}
-	if this.invalid {
+	if this.state!="" && this.state!=api.STATE_PENDING {
 		status.Active = nil
 	}
 	if !reflect.DeepEqual(this.dnslb.Status(), status) {
@@ -169,7 +189,7 @@ func (this *DNSDone) _updateEndpointStatus(ep *lbutils.DNSLoadBalancerEndpointOb
 		dnsep.Status().Healthy = healthy
 		dnsep.Status().Active = active
 		this.model.Infof("updating status for endpoint %s/%s: healthy %t, active %t", dnsep.GetNamespace(), dnsep.GetName(), healthy, active)
-		err := ep.Update()
+		err := dnsep.Update()
 		if err != nil {
 			this.model.Errorf("cannot update dns endpoint status for %s/%s: %s", dnsep.GetNamespace(), dnsep.GetName(), err)
 		}
@@ -180,7 +200,8 @@ func (this *DNSDone) _updateEndpointStatus(ep *lbutils.DNSLoadBalancerEndpointOb
 
 ///////////////////////////////////////
 
-func (this *DNSDone) Failed(err error) {
+func (this *DNSDone) Failed(dnsname string, err error) {
+	this.state = dnsapi.STATE_ERROR
 	this.Error(false, err)
 }
 

@@ -3,6 +3,7 @@ package model
 import (
 	"crypto/tls"
 	"fmt"
+
 	"github.com/mandelsoft/dns-controller-manager/pkg/dns/source"
 
 	//api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
@@ -57,7 +58,7 @@ func (t *Target) String() string {
 ////////////////////////////////////////////////////////////////////////////////
 
 type Watch struct {
-	DNS        string
+	DNSName    string
 	HealthPath string
 	StatusCode int
 	Targets    []*Target
@@ -65,61 +66,60 @@ type Watch struct {
 	DNSLB      *lbutils.DNSLoadBalancerObject
 }
 
-func (w *Watch) String() string {
-	if w.DNSLB == nil {
-		return w.DNS
+func (this *Watch) String() string {
+	if this.DNSLB == nil {
+		return this.DNSName
 	}
-	return fmt.Sprintf("%s [%s]", w.DNSLB.ObjectName(), w.DNS)
+	return fmt.Sprintf("%s [%s]", this.DNSLB.ObjectName(), this.DNSName)
 }
 
-func (w *Watch) GetKey() string {
-	if w.DNSLB == nil {
-		return w.DNS
+func (this *Watch) GetKey() string {
+	if this.DNSLB == nil {
+		return this.DNSName
 	}
-	return w.DNSLB.ObjectName().String()
+	return this.DNSLB.ObjectName().String()
 }
 
-func (w *Watch) Handle(m *Model) source.DNSStatusUpdate {
-	m.Debugf("handle %s", w.DNS)
+func (this *Watch) Handle(m *Model) source.DNSFeedback {
+	m.Debugf("handle %s", this.DNSName)
 
 	ctx:=InactiveContext(m)
-	done := NewStatusUpdate(m, w)
+	done := NewStatusUpdate(m, this)
 	healthyTargets := []*Target{}
 	msg := ""
-	if len(w.Targets) == 0 {
-		ctx.StateInfof(w.DNS, "no endpoints configured for %s", w)
+	if len(this.Targets) == 0 {
+		ctx.StateInfof(this.DNSName, "no endpoints configured for %s", this)
 		done.Error(true, fmt.Errorf("no endpoints configured"))
 		return nil
 	}
 
-
-	if w.IsHealthy(w.DNS) {
+	if this.IsHealthy(this.DNSName) {
 		done.SetHealthy(true)
-		ctx = ctx.StateInfof(w.DNS, "%s is healthy", w)
-		metrics.ReportLB(w.GetKey(), w.DNS, true)
+		ctx = ctx.StateInfof(this.DNSName, "%s is healthy", this)
+		metrics.ReportLB(this.GetKey(), this.DNSName, true)
 	} else {
 		done.SetHealthy(false)
-		ctx = ctx.StateInfof(w.DNS, "%s is NOT healthy", w)
-		metrics.ReportLB(w.GetKey(), w.DNS, false)
+		ctx = ctx.StateInfof(this.DNSName, "%s is NOT healthy", this)
+		metrics.ReportLB(this.GetKey(), this.DNSName, false)
 	}
 
-	if w.Singleton {
-		for _, target := range w.Targets {
+	if this.Singleton {
+		for _, target := range this.Targets {
 			mod := m.Check(target)
-			if w.IsHealthy(target.GetHostName(), w.DNS) {
-				metrics.ReportEndpoint(w.GetKey(), target.GetKey(), target.GetHostName(), true)
+			if this.IsHealthy(target.GetHostName(), this.DNSName) {
+				metrics.ReportEndpoint(this.GetKey(), target.GetKey(), target.GetHostName(), true)
 				if len(healthyTargets) == 0 {
 					healthyTargets = append(healthyTargets, target)
 				}
 				done.AddHealthyTarget(target)
 				if !mod {
 					healthyTargets[0] = target
-					ctx.StateInfof(target.GetHostName(), "healthy active target for %s is %s", w.DNS, target.GetHostName())
+					ctx.StateInfof(target.GetHostName(), "healthy active target for %s is %s", this.DNSName, target.GetHostName())
 				} else {
 					ctx.StateInfof(target.GetHostName(), "target %s is healthy", target.GetHostName())
 				}
 			} else {
-				metrics.ReportEndpoint(w.GetKey(), target.GetKey(), target.GetHostName(), false)
+				metrics.ReportEndpoint(this.GetKey(), target.GetKey(), target.GetHostName(), false)
 				done.AddUnhealthyTarget(target)
 				if !mod {
 					ctx.StateInfof(target.GetHostName(), "active target %s is unhealthy", target.GetHostName())
@@ -133,29 +133,31 @@ func (w *Watch) Handle(m *Model) source.DNSStatusUpdate {
 		}
 	} else {
 
-		for _, target := range w.Targets {
-			if w.IsHealthy(target.GetHostName(), w.DNS) {
-				metrics.ReportEndpoint(w.GetKey(), target.GetKey(), target.GetHostName(), true)
+		for _, target := range this.Targets {
+			if this.IsHealthy(target.GetHostName(), this.DNSName) {
+				metrics.ReportEndpoint(this.GetKey(), target.GetKey(), target.GetHostName(), true)
 				ctx.StateInfof(target.GetHostName(), "target %s is healthy", target.GetHostName())
 				done.AddActiveTarget(target)
 				done.AddHealthyTarget(target)
 				healthyTargets = append(healthyTargets, target)
 				msg = fmt.Sprintf("%s %s", msg, target.GetHostName())
 			} else {
-				metrics.ReportEndpoint(w.GetKey(), target.GetKey(), target.GetHostName(), false)
+				metrics.ReportEndpoint(this.GetKey(), target.GetKey(), target.GetHostName(), false)
 				ctx.StateInfof(target.GetHostName(), "target %s in unhealthy", target.GetHostName())
 				done.AddUnhealthyTarget(target)
 			}
 		}
 	}
+
+
 	mod:= m.Apply(healthyTargets...)
 	if mod {
-		done.SetMessage(fmt.Sprintf("replacing %s with %s", w.DNS, msg))
+		done.SetMessage(fmt.Sprintf("replacing %s with %s", this.DNSName, msg))
 		logger.Info(done.message)
 	} else {
 		if !done.HasHealthy() {
 			ctx.Infof("no healthy targets found")
-			done.Failed(fmt.Errorf("no healthy targets found"))
+			done.Failed(this.DNSName, fmt.Errorf("no healthy targets found"))
 		} else {
 			done.Succeeded()
 		}
@@ -164,15 +166,15 @@ func (w *Watch) Handle(m *Model) source.DNSStatusUpdate {
 	return done
 }
 
-func (w *Watch) IsHealthy(name string, dns ...string) bool {
+func (this *Watch) IsHealthy(name string, dns ...string) bool {
 	var (
 		tr = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client   = &http.Client{Transport: tr}
-		hostname = fmt.Sprintf("https://%s%s", name, w.HealthPath)
+		hostname = fmt.Sprintf("https://%s%s", name, this.HealthPath)
 	)
-	statusCode := w.StatusCode
+	statusCode := this.StatusCode
 	if statusCode == 0 {
 		statusCode = 200
 	}

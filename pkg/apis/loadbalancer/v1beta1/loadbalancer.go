@@ -49,7 +49,7 @@ type DNSLoadBalancerSpec struct {
 
 const (
 	LBTYPE_BALANCED  = "Balanced"  // all active endpoints are selected
-	LBTYPE_EXCLUSIVE = "Exclusive" // singleton DNS entry (one active endpoint is selected)
+	LBTYPE_EXCLUSIVE = "Exclusive" // singleton DNSName entry (one active endpoint is selected)
 )
 
 type DNSLoadBalancerStatus struct {

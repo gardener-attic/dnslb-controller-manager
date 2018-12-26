@@ -27,8 +27,6 @@ type source_reconciler struct {
 	ep_resource resources.Interface
 }
 
-
-
 func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
 	lb, err:=c.GetDefaultCluster().GetResource(resources.NewGroupKind(api.GroupName, api.LoadBalancerResourceKind))
 	if err != nil {
@@ -50,7 +48,7 @@ func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
 
 
 func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources.Object) reconcile.Status {
-	ep:=this.AssertSingleSlave(logger,obj.ClusterKey(),this.LookupSlaves(obj.ClusterKey()))
+	ep:=this.AssertSingleSlave(logger,obj.ClusterKey(), this.LookupSlaves(obj.ClusterKey()), nil)
 	ref,src:=this.IsValid(obj)
 	if ref != nil {
 		logger.Debugf("HANDLE reconcile %s for %s", obj.ObjectName(), ref)
