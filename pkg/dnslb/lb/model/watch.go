@@ -87,7 +87,6 @@ func (this *Watch) Handle(m *Model) source.DNSFeedback {
 	ctx:=InactiveContext(m)
 	done := NewStatusUpdate(m, this)
 	healthyTargets := []*Target{}
-	msg := ""
 	if len(this.Targets) == 0 {
 		ctx.StateInfof(this.DNSName, "no endpoints configured for %s", this)
 		done.Error(true, fmt.Errorf("no endpoints configured"))
@@ -141,7 +140,6 @@ func (this *Watch) Handle(m *Model) source.DNSFeedback {
 				done.AddActiveTarget(target)
 				done.AddHealthyTarget(target)
 				healthyTargets = append(healthyTargets, target)
-				msg = fmt.Sprintf("%s %s", msg, target.GetHostName())
 			} else {
 				metrics.ReportEndpoint(this.GetKey(), target.GetKey(), target.GetHostName(), false)
 				ctx.StateInfof(target.GetHostName(), "target %s in unhealthy", target.GetHostName())
@@ -153,7 +151,7 @@ func (this *Watch) Handle(m *Model) source.DNSFeedback {
 
 	mod:= m.Apply(healthyTargets...)
 	if mod {
-		done.SetMessage(fmt.Sprintf("replacing %s with %s", this.DNSName, msg))
+		done.SetMessage(fmt.Sprintf("replacing targets for %s: %s -> %s", this.DNSName, m.current.Targets, m.Get()))
 		m.Info(done.message)
 	} else {
 		if !done.HasHealthy() {

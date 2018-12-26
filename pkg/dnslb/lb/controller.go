@@ -9,7 +9,7 @@ import (
 var _MAIN_RESOURCE = resources.NewGroupKind(api.GroupName, "DNSLoadBalancer")
 
 func init() {
-	source.DNSSourceController(source.NewDNSSouceTypeForCreator("dnslb-dns", _MAIN_RESOURCE, NewDNSLBSource), nil).
+	source.DNSSourceController(source.NewDNSSouceTypeForCreator("dnslb-loadbalancer", _MAIN_RESOURCE, NewDNSLBSource), nil).
 		FinalizerDomain("mandelsoft.org").
 		Reconciler(StateReconciler,"state").ReconcilerWatch("state", api.GroupName, api.LoadBalancerEndpointResourceKind).
 		MustRegister("loadbalancer")

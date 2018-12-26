@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
+	"github.com/gardener/dnslb-controller-manager/pkg/crds"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/lb/model"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 
@@ -31,6 +32,12 @@ type DNSLBSource struct {
 var _ source.DNSSource = &DNSLBSource{}
 
 func NewDNSLBSource(c controller.Interface) (source.DNSSource, error) {
+	var clientsets = c.GetDefaultCluster().Clientsets()
+
+	err := crds.RegisterCrds(clientsets)
+	if err != nil {
+		return nil, err
+	}
 	state := c.GetOrCreateSharedValue(KEY_STATE,
 		func() interface{} {
 			return NewState(c)
@@ -46,7 +53,6 @@ func (this *DNSLBSource) Start() {
 }
 
 func (this *DNSLBSource) GetDNSInfo(logger logger.LogContext, obj resources.Object, current *source.DNSCurrentState) (*source.DNSInfo, error) {
-	logger.Infof("GET INFO for %s", obj.ObjectName())
 	targets, done := this.GetTargets(logger, obj, current)
 	info := &source.DNSInfo{Targets: targets, Feedback: done}
 	info.Names = utils.NewStringSet(obj.Data().(*api.DNSLoadBalancer).Spec.DNSName)

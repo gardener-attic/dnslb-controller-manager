@@ -44,9 +44,6 @@ func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
 	}, nil
 }
 
-
-
-
 func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources.Object) reconcile.Status {
 	ep:=this.AssertSingleSlave(logger,obj.ClusterKey(), this.LookupSlaves(obj.ClusterKey()), nil)
 	ref,src:=this.IsValid(obj)
@@ -68,7 +65,8 @@ func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources
 			if err != nil {
 				return reconcile.Delay(logger, fmt.Errorf("error creating load balancer endpoint: %s", err))
 			}
-			src.Eventf(corev1.EventTypeNormal, "sync", "dns load balancer endpoint %s created", ep.ObjectName())
+			logger.Infof("dns load balancer endpoint %s created", newep.ObjectName())
+			src.Eventf(corev1.EventTypeNormal, "sync", "dns load balancer endpoint %s created", newep.ObjectName())
 			return reconcile.Succeeded(logger).RescheduleAfter(60*time.Second)
 		}
 		mod := this.updateEndpoint(logger, ep, newep, lb, src)

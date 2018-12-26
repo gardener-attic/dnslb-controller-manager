@@ -17,6 +17,7 @@ package endpoint
 import (
 	"fmt"
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
+	"github.com/gardener/lib/pkg/controllermanager/cluster"
 	"github.com/gardener/lib/pkg/controllermanager/controller"
 	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile/reconcilers"
 	"github.com/gardener/lib/pkg/resources"
@@ -32,13 +33,18 @@ const AnnotationLoadbalancer = api.GroupName + "/dnsloadbalancer"
 var endpointGK=resources.NewGroupKind(api.GroupName, api.LoadBalancerEndpointResourceKind)
 
 func init() {
+	cluster.Register("target","target","target cluster for endpoints")
+
 	controller.Configure("dnslb-endpoint").
 		FinalizerDomain(api.GroupName).
-		MainResource(api.GroupName, api.LoadBalancerEndpointResourceKind).
-		Reconciler(reconcilers.SlaveReconcilerType("endpoint",SlaveResources,nil)).
-		Reconciler(SourceReconciler, "sources").
-		WorkerPool("sources", 3, 0).ReconcilerWatch("sources", corev1.GroupName, "Service").
-		ReconcilerWatch("sources", extensions.GroupName, "Ingress").
+		Cluster(cluster.DEFAULT). // used as main cluster
+		MainResource(corev1.GroupName, "Service").
+		Watch(extensions.GroupName, "Ingress").
+		Reconciler(SourceReconciler).
+		Reconciler(reconcilers.SlaveReconcilerType("endpoint",SlaveResources,nil),"endpoints").
+		Cluster("target").
+		WorkerPool("endpoints", 3, 0).
+		ReconcilerWatch("endpoints", api.GroupName, api.LoadBalancerEndpointResourceKind).
 		MustRegister("source")
 }
 

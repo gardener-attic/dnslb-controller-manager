@@ -19,6 +19,6 @@ metadata:
   name: test
   namespace: default
 spec:
-  DNSName: deftest.garden.ring01.dev.k8s.ondemand.com
+  type: Balanced
+  DNSName: test.lb.test.ringtest.dev.k8s.ondemand.com
   healthPath:  /healthz
-  singleton: false
