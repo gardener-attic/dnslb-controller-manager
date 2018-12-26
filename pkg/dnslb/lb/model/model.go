@@ -30,7 +30,7 @@ func (this *Model) Apply(targets... *Target) bool {
 		set.Add(t.GetHostName())
 	}
 	this.updated=set
-	return set.Equals(this.current.Targets)
+	return !set.Equals(this.current.Targets)
 }
 
 func (this *Model) Get() utils.StringSet {

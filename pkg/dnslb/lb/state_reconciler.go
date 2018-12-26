@@ -26,7 +26,8 @@ type stateReconciler struct {
 }
 
 func (this *stateReconciler) Reconcile(logger logger.LogContext, obj resources.Object) reconcile.Status {
-	logger.Infof("reconcile endpoint %q", obj.ObjectName())
+	logger.Infof("reconcile endpoint %q", obj.ClusterKey())
+
 	this.state.UpdateEndpoint(logger, obj)
 	return reconcile.Succeeded(logger)
 

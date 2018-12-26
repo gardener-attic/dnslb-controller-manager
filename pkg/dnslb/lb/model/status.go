@@ -20,8 +20,6 @@ import (
 	"reflect"
 	"sort"
 
-	dnsapi "github.com/mandelsoft/dns-controller-manager/pkg/apis/dns/v1alpha1"
-
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/metrics"
@@ -33,7 +31,6 @@ type DNSDone struct {
 	dnslb     *lbutils.DNSLoadBalancerObject
 	model     *Model
 	done      bool
-	state     string
 	message   string
 	hcount    int
 	ishealthy bool
@@ -55,27 +52,20 @@ func NewStatusUpdate(m *Model, w *Watch) *DNSDone {
 }
 
 func (this *DNSDone) Ready(dnsname string, msg string) {
-	this.state = ""
-	this.SetMessage(msg)
+	this.emitPendingEvent()
+	this.updateStatus("",msg)
 }
 
 func (this *DNSDone) Pending(dnsname string, msg string) {
-	this.state = api.STATE_PENDING
-	this.SetMessage(msg)
+	this.emitPendingEvent()
+	this.updateStatus(api.STATE_PENDING,msg)
 }
 
 func (this *DNSDone) Invalid(dnsname string, msg error) {
-	this.state = api.STATE_INVALID
-	this.SetMessage(msg.Error())
+	this.emitPendingEvent()
+	this.updateStatus(api.STATE_INVALID,msg.Error())
 }
 
-func (this *DNSDone) IsInvalid() bool {
-	return this.state == api.STATE_INVALID
-}
-
-func (this *DNSDone) IsError() bool {
-	return this.state == api.STATE_ERROR
-}
 
 func (this *DNSDone) IsHealthy() bool {
 	return this.ishealthy
@@ -125,29 +115,32 @@ func (this *DNSDone) Event(ty, reason string, msg string) {
 	this.dnslb.Event(ty, reason, msg)
 }
 
-func (this *DNSDone) updateStatus() {
-	this._updateLoadBalancerStatus(true, "")
-	for _, t := range this.healthy {
-		this._updateEndpointStatus(t, true, this.active[t.GetName()] != nil)
-	}
-	for _, t := range this.unhealthy {
-		this._updateEndpointStatus(t, false, false)
+func (this *DNSDone) updateStatus(state, message string) {
+	if !this.done {
+		this.done=true
+		this._updateLoadBalancerStatus(true, state, message)
+		for _, t := range this.healthy {
+			this._updateEndpointStatus(t, true, this.active[t.GetName()] != nil)
+		}
+		for _, t := range this.unhealthy {
+			this._updateEndpointStatus(t, false, false)
+		}
 	}
 }
 
-func (this *DNSDone) _updateLoadBalancerStatus(activeupd bool, fail string) {
+func (this *DNSDone) _updateLoadBalancerStatus(activeupd bool, state, message string) {
 	dnslb := this.dnslb.Copy()
 	status := dnslb.Status()
-	if this.state=="" {
+	if state=="" {
 		if this.ishealthy {
 			status.State = "healthy"
 		} else {
 			status.State = "unreachable"
 		}
 	} else {
-		status.State=this.state
+		status.State=state
 	}
-	status.Message = fail
+	status.Message = message
 	if activeupd {
 		if len(this.active) > 0 {
 			status.Active = []api.DNSLoadBalancerActive{}
@@ -160,7 +153,7 @@ func (this *DNSDone) _updateLoadBalancerStatus(activeupd bool, fail string) {
 				t := this.active[k]
 				status.Active = append(status.Active,
 					api.DNSLoadBalancerActive{
-						Name:      t.GetName(),
+						Endpoint:  t.GetName(),
 						IPAddress: t.Spec().IPAddress,
 						CName:     t.Spec().CName,
 					})
@@ -168,13 +161,14 @@ func (this *DNSDone) _updateLoadBalancerStatus(activeupd bool, fail string) {
 		} else {
 			status.Active = nil
 		}
-	}
-	if this.state!="" && this.state!=api.STATE_PENDING {
-		status.Active = nil
+	} else {
+		if state != "" && state != api.STATE_PENDING {
+			status.Active = nil
+		}
 	}
 	if !reflect.DeepEqual(this.dnslb.Status(), status) {
 		this.model.Infof("old: %#v", this.dnslb.Status())
-		this.model.Infof("new: %#v", status)
+		this.model.Infof("new: %#v", dnslb.Status())
 		this.model.Infof("updating status for dns load balancer %s/%s", dnslb.GetNamespace(), dnslb.GetName())
 		err := dnslb.Update()
 		if err != nil {
@@ -201,7 +195,6 @@ func (this *DNSDone) _updateEndpointStatus(ep *lbutils.DNSLoadBalancerEndpointOb
 ///////////////////////////////////////
 
 func (this *DNSDone) Failed(dnsname string, err error) {
-	this.state = dnsapi.STATE_ERROR
 	this.Error(false, err)
 }
 
@@ -215,19 +208,21 @@ func (this *DNSDone) Error(activeupd bool, err error) {
 			msg = err.Error()
 		}
 		this.Event(corev1.EventTypeWarning, "sync", msg)
-		this._updateLoadBalancerStatus(activeupd, msg)
+		this._updateLoadBalancerStatus(activeupd, api.STATE_ERROR, msg)
 	}
 }
 
 func (this *DNSDone) Succeeded() {
-	if !this.done {
-		this.done = true
-		if this.message != "" {
-			this.Eventf(corev1.EventTypeNormal, "sync", "%s", this.message)
-		}
-		if this.IsHealthy() {
-			this.Eventf(corev1.EventTypeNormal, "sync", "healthy again")
-		}
-		this.updateStatus()
+	this.emitPendingEvent()
+	this.updateStatus("","")
+}
+
+func (this *DNSDone) emitPendingEvent() {
+	if this.message != "" {
+		this.Eventf(corev1.EventTypeNormal, "sync", "%s", this.message)
 	}
+	if this.IsHealthy() {
+		this.Eventf(corev1.EventTypeNormal, "sync", "healthy again")
+	}
+	this.message=""
 }

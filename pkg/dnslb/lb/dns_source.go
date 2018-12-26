@@ -46,9 +46,9 @@ func (this *DNSLBSource) Start() {
 }
 
 func (this *DNSLBSource) GetDNSInfo(logger logger.LogContext, obj resources.Object, current *source.DNSCurrentState) (*source.DNSInfo, error) {
+	logger.Infof("GET INFO for %s", obj.ObjectName())
 	targets, done := this.GetTargets(logger, obj, current)
 	info := &source.DNSInfo{Targets: targets, Feedback: done}
-	logger.Infof("GET INFO for %s", obj.ObjectName())
 	info.Names = utils.NewStringSet(obj.Data().(*api.DNSLoadBalancer).Spec.DNSName)
 	return info, nil
 }

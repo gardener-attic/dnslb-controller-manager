@@ -59,7 +59,7 @@ type DNSLoadBalancerStatus struct {
 }
 
 type DNSLoadBalancerActive struct {
-	Name      string `json:"name"`
+	Endpoint  string `json:"endpoint"`
 	IPAddress string `json:"ipaddress,omitempty"`
 	CName     string `json:"cname,omitempty"`
 }

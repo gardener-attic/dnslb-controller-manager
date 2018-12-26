@@ -4,12 +4,13 @@ import (
 	"crypto/tls"
 	"fmt"
 
+	"github.com/gardener/lib/pkg/logger"
+
 	"github.com/mandelsoft/dns-controller-manager/pkg/dns/source"
 
 	//api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/metrics"
-	"github.com/gardener/lib/pkg/logger"
 	"net/http"
 )
 
@@ -93,7 +94,7 @@ func (this *Watch) Handle(m *Model) source.DNSFeedback {
 		return nil
 	}
 
-	if this.IsHealthy(this.DNSName) {
+	if this.IsHealthy(m, this.DNSName) {
 		done.SetHealthy(true)
 		ctx = ctx.StateInfof(this.DNSName, "%s is healthy", this)
 		metrics.ReportLB(this.GetKey(), this.DNSName, true)
@@ -106,7 +107,7 @@ func (this *Watch) Handle(m *Model) source.DNSFeedback {
 	if this.Singleton {
 		for _, target := range this.Targets {
 			mod := m.Check(target)
-			if this.IsHealthy(target.GetHostName(), this.DNSName) {
+			if this.IsHealthy(m, target.GetHostName(), this.DNSName) {
 				metrics.ReportEndpoint(this.GetKey(), target.GetKey(), target.GetHostName(), true)
 				if len(healthyTargets) == 0 {
 					healthyTargets = append(healthyTargets, target)
@@ -134,7 +135,7 @@ func (this *Watch) Handle(m *Model) source.DNSFeedback {
 	} else {
 
 		for _, target := range this.Targets {
-			if this.IsHealthy(target.GetHostName(), this.DNSName) {
+			if this.IsHealthy(m, target.GetHostName(), this.DNSName) {
 				metrics.ReportEndpoint(this.GetKey(), target.GetKey(), target.GetHostName(), true)
 				ctx.StateInfof(target.GetHostName(), "target %s is healthy", target.GetHostName())
 				done.AddActiveTarget(target)
@@ -153,20 +154,18 @@ func (this *Watch) Handle(m *Model) source.DNSFeedback {
 	mod:= m.Apply(healthyTargets...)
 	if mod {
 		done.SetMessage(fmt.Sprintf("replacing %s with %s", this.DNSName, msg))
-		logger.Info(done.message)
+		m.Info(done.message)
 	} else {
 		if !done.HasHealthy() {
 			ctx.Infof("no healthy targets found")
 			done.Failed(this.DNSName, fmt.Errorf("no healthy targets found"))
-		} else {
-			done.Succeeded()
 		}
 	}
 
 	return done
 }
 
-func (this *Watch) IsHealthy(name string, dns ...string) bool {
+func (this *Watch) IsHealthy(logger logger.LogContext, name string, dns ...string) bool {
 	var (
 		tr = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -185,13 +184,18 @@ func (this *Watch) IsHealthy(name string, dns ...string) bool {
 	}
 	if len(dns) > 0 {
 		req.Header.Add("Host", dns[0])
+	} else {
+		dns=[]string{name}
 	}
 
+	logger.Debugf("health check for %q(%q)%s", name, dns[0], this.HealthPath)
 	resp, err := client.Do(req)
 	if err != nil {
+		logger.Debugf("request failed")
 		return false
 	}
 
 	resp.Body.Close()
+	logger.Debugf("found status %d", resp.StatusCode)
 	return resp.StatusCode == statusCode
 }
