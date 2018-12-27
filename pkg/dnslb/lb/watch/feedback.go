@@ -12,24 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+package watch
 
 import (
 	"fmt"
-	"github.com/mandelsoft/dns-controller-manager/pkg/dns/source"
 	"reflect"
 	"sort"
+
+	"github.com/mandelsoft/dns-controller-manager/pkg/dns/source"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/metrics"
+	"github.com/gardener/lib/pkg/logger"
 
 	corev1 "k8s.io/api/core/v1"
 )
 
 type DNSDone struct {
+	logger    logger.LogContext
 	dnslb     *lbutils.DNSLoadBalancerObject
-	model     *Model
 	done      bool
 	message   string
 	hcount    int
@@ -41,9 +43,9 @@ type DNSDone struct {
 
 var _ source.DNSFeedback = &DNSDone{}
 
-func NewStatusUpdate(m *Model, w *Watch) *DNSDone {
+func NewStatusUpdate(w *Watch) *DNSDone {
 	return &DNSDone{
-		model:     m,
+		logger:    w,
 		dnslb:     w.DNSLB,
 		active:    map[string]*lbutils.DNSLoadBalancerEndpointObject{},
 		healthy:   map[string]*lbutils.DNSLoadBalancerEndpointObject{},
@@ -53,19 +55,18 @@ func NewStatusUpdate(m *Model, w *Watch) *DNSDone {
 
 func (this *DNSDone) Ready(dnsname string, msg string) {
 	this.emitPendingEvent()
-	this.updateStatus("",msg)
+	this.updateStatus("", msg)
 }
 
 func (this *DNSDone) Pending(dnsname string, msg string) {
 	this.emitPendingEvent()
-	this.updateStatus(api.STATE_PENDING,msg)
+	this.updateStatus(api.STATE_PENDING, msg)
 }
 
 func (this *DNSDone) Invalid(dnsname string, msg error) {
 	this.emitPendingEvent()
-	this.updateStatus(api.STATE_INVALID,msg.Error())
+	this.updateStatus(api.STATE_INVALID, msg.Error())
 }
-
 
 func (this *DNSDone) IsHealthy() bool {
 	return this.ishealthy
@@ -117,7 +118,7 @@ func (this *DNSDone) Event(ty, reason string, msg string) {
 
 func (this *DNSDone) updateStatus(state, message string) {
 	if !this.done {
-		this.done=true
+		this.done = true
 		this._updateLoadBalancerStatus(true, state, message)
 		for _, t := range this.healthy {
 			this._updateEndpointStatus(t, true, this.active[t.GetName()] != nil)
@@ -131,16 +132,19 @@ func (this *DNSDone) updateStatus(state, message string) {
 func (this *DNSDone) _updateLoadBalancerStatus(activeupd bool, state, message string) {
 	dnslb := this.dnslb.Copy()
 	status := dnslb.Status()
-	if state=="" {
+	if state == "" {
 		if this.ishealthy {
-			status.State = "healthy"
+			state=api.STATE_HEALTHY
 		} else {
-			status.State = "unreachable"
+			state=api.STATE_UNREACHABLE
 		}
-	} else {
-		status.State=state
 	}
-	status.Message = message
+	status.State = &state
+	if message!="" {
+		status.Message = &message
+	} else {
+		status.Message = nil
+	}
 	if activeupd {
 		if len(this.active) > 0 {
 			status.Active = []api.DNSLoadBalancerActive{}
@@ -167,25 +171,29 @@ func (this *DNSDone) _updateLoadBalancerStatus(activeupd bool, state, message st
 		}
 	}
 	if !reflect.DeepEqual(this.dnslb.Status(), status) {
-		this.model.Infof("old: %#v", this.dnslb.Status())
-		this.model.Infof("new: %#v", dnslb.Status())
-		this.model.Infof("updating status for dns load balancer %s/%s", dnslb.GetNamespace(), dnslb.GetName())
+		this.logger.Infof("old: %+v", this.dnslb.Status())
+		this.logger.Infof("new: %+v", dnslb.Status())
+		this.logger.Infof("updating status for dns load balancer %s/%s", dnslb.GetNamespace(), dnslb.GetName())
 		err := dnslb.Update()
 		if err != nil {
-			this.model.Errorf("cannot update dns load balancer status for %s/%s: %s", dnslb.GetNamespace(), dnslb.GetName(), err)
+			this.logger.Errorf("cannot update dns load balancer status for %s/%s: %s", dnslb.GetNamespace(), dnslb.GetName(), err)
 		}
 	}
 }
 
 func (this *DNSDone) _updateEndpointStatus(ep *lbutils.DNSLoadBalancerEndpointObject, healthy, active bool) {
-	if ep.Status().Healthy != healthy || ep.Status().Active != active {
-		dnsep := ep.Copy()
-		dnsep.Status().Healthy = healthy
-		dnsep.Status().Active = active
-		this.model.Infof("updating status for endpoint %s/%s: healthy %t, active %t", dnsep.GetNamespace(), dnsep.GetName(), healthy, active)
-		err := dnsep.Update()
+
+	state:=api.STATE_INACTIVE
+	if active {
+		state = api.STATE_ACTIVE
+	}
+	mod,err:=ep.Copy().UpdateState(state,"",&healthy)
+
+	if mod {
 		if err != nil {
-			this.model.Errorf("cannot update dns endpoint status for %s/%s: %s", dnsep.GetNamespace(), dnsep.GetName(), err)
+			this.logger.Errorf("cannot update dns endpoint status for %s: %s", ep.ObjectName(), err)
+		} else {
+			this.logger.Infof("updating status for endpoint %s: healthy %t, active %t", ep.ObjectName(), healthy, active)
 		}
 	}
 
@@ -214,7 +222,7 @@ func (this *DNSDone) Error(activeupd bool, err error) {
 
 func (this *DNSDone) Succeeded() {
 	this.emitPendingEvent()
-	this.updateStatus("","")
+	this.updateStatus("", "")
 }
 
 func (this *DNSDone) emitPendingEvent() {
@@ -224,5 +232,5 @@ func (this *DNSDone) emitPendingEvent() {
 	if this.IsHealthy() {
 		this.Eventf(corev1.EventTypeNormal, "sync", "healthy again")
 	}
-	this.message=""
+	this.message = ""
 }

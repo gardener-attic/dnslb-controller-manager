@@ -30,6 +30,8 @@ import (
 
 const AnnotationLoadbalancer = api.GroupName + "/dnsloadbalancer"
 
+const TARGET_CLUSTER = "target"
+
 var endpointGK=resources.NewGroupKind(api.GroupName, api.LoadBalancerEndpointResourceKind)
 
 func init() {
@@ -42,7 +44,7 @@ func init() {
 		Watch(extensions.GroupName, "Ingress").
 		Reconciler(SourceReconciler).
 		Reconciler(reconcilers.SlaveReconcilerType("endpoint",SlaveResources,nil),"endpoints").
-		Cluster("target").
+		Cluster(TARGET_CLUSTER).
 		WorkerPool("endpoints", 3, 0).
 		ReconcilerWatch("endpoints", api.GroupName, api.LoadBalancerEndpointResourceKind).
 		MustRegister("source")

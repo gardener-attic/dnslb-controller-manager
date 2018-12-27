@@ -27,7 +27,7 @@ func RegisterCrds(clientsets clientsets.Interface) error {
 			Name:        "DNSNAME",
 			Description: "DNS Name of loadbalancer",
 			Type:        "string",
-			JSONPath:    ".spec.DNSName",
+			JSONPath:    ".spec.dnsname",
 		},
 		v1beta1.CustomResourceColumnDefinition{
 			Name:        "TYPE",
@@ -52,20 +52,20 @@ func RegisterCrds(clientsets clientsets.Interface) error {
 			JSONPath:    ".spec.loadbalancer",
 		},
 		v1beta1.CustomResourceColumnDefinition{
-			Name:        "ACTIVE",
-			Description: "Assigned to Loadbalancer",
+			Name:        "HEALTHY",
+			Description: "Health status of endpoint",
 			Type:        "boolean",
-			JSONPath:    ".status.active",
+			JSONPath:    ".status.healthy",
 		},
 		v1beta1.CustomResourceColumnDefinition{
-			Name:        "HEALTHY",
-			Description: "Heakth status of endpoint",
-			Type:        "boolean",
-			JSONPath:    ".status.active",
-		})
+			Name:        "STATUS",
+			Description: "Assigned to Loadbalancer",
+			Type:        "string",
+			JSONPath:    ".status.state",
+		},
+	)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-

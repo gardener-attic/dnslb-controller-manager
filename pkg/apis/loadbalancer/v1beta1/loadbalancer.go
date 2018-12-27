@@ -39,7 +39,7 @@ type DNSLoadBalancer struct {
 }
 
 type DNSLoadBalancerSpec struct {
-	DNSName                  string           `json:"DNSName"`
+	DNSName                  string           `json:"dnsname"`
 	HealthPath               string           `json:"healthPath"`
 	StatusCode               int              `json:"statusCode,omitempty"`
 	Type                     string           `json:"type,omitempty"`
@@ -49,12 +49,12 @@ type DNSLoadBalancerSpec struct {
 
 const (
 	LBTYPE_BALANCED  = "Balanced"  // all active endpoints are selected
-	LBTYPE_EXCLUSIVE = "Exclusive" // singleton DNSName entry (one active endpoint is selected)
+	LBTYPE_EXCLUSIVE = "Exclusive" // singleton dnsname entry (one active endpoint is selected)
 )
 
 type DNSLoadBalancerStatus struct {
-	State   string                  `json:"state"`
-	Message string                  `json:"message,omitempty"`
+	State   *string                  `json:"state,omitempty"`
+	Message *string                  `json:"message,omitempty"`
 	Active  []DNSLoadBalancerActive `json:"active,omitempty"`
 }
 
@@ -91,7 +91,8 @@ type DNSLoadBalancerEndpointSpec struct {
 }
 
 type DNSLoadBalancerEndpointStatus struct {
-	Active     bool         `json:"active"`
+	State      *string      `json:"state,omitempty"`
+	Message    *string      `json:"message,omitempty"`
 	Healthy    bool         `json:"healthy"`
 	ValidUntil *metav1.Time `json:"validUntil,omitempty"`
 }

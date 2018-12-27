@@ -20,5 +20,5 @@ metadata:
   namespace: default
 spec:
   type: Balanced
-  DNSName: test.lb.test.ringtest.dev.k8s.ondemand.com
+  dnsname: test.lb.test.ringtest.dev.k8s.ondemand.com
   healthPath:  /healthz

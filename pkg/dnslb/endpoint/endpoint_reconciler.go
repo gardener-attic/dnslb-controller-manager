@@ -28,11 +28,12 @@ type source_reconciler struct {
 }
 
 func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
-	lb, err:=c.GetDefaultCluster().GetResource(resources.NewGroupKind(api.GroupName, api.LoadBalancerResourceKind))
+	target:=c.GetCluster(TARGET_CLUSTER)
+	lb, err:=target.GetResource(resources.NewGroupKind(api.GroupName, api.LoadBalancerResourceKind))
 	if err != nil {
 		return nil,err
 	}
-	ep, err:=c.GetDefaultCluster().GetResource(resources.NewGroupKind(api.GroupName, api.LoadBalancerEndpointResourceKind))
+	ep, err:=target.GetResource(resources.NewGroupKind(api.GroupName, api.LoadBalancerEndpointResourceKind))
 	if err != nil {
 		return nil,err
 	}
@@ -60,12 +61,12 @@ func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources
 		}
 		newep := this.newEndpoint(logger, lb, src)
 		if ep==nil {
-			logger.Infof("endpoint not found -> create it")
+			logger.Infof("endpoint for loadbalancer %s not found -> create it", ref)
 			err:=this.CreateSlave(src,newep)
 			if err != nil {
 				return reconcile.Delay(logger, fmt.Errorf("error creating load balancer endpoint: %s", err))
 			}
-			logger.Infof("dns load balancer endpoint %s created", newep.ObjectName())
+			logger.Infof("dns load balancer endpoint %s created for %s", newep.ObjectName(), ref)
 			src.Eventf(corev1.EventTypeNormal, "sync", "dns load balancer endpoint %s created", newep.ObjectName())
 			return reconcile.Succeeded(logger).RescheduleAfter(60*time.Second)
 		}
@@ -122,8 +123,10 @@ func (this *source_reconciler) validate(logger logger.LogContext, ref resources.
 	lb, err := this.lb_resource.GetCached(ref)
 	if lb == nil || err != nil {
 		if errors.IsNotFound(err) {
-			return nil, reconcile.Failed(logger,fmt.Errorf("dns loadbalancer '%s' does not exist", ref))
+			src.Eventf(corev1.EventTypeNormal,AnnotationLoadbalancer,fmt.Sprintf("dns loadbalancer '%s' does not exist", ref))
+			return nil, reconcile.Failed(logger,fmt.Errorf("dns loadbalancer '%s' does not exist", ref)).RescheduleAfter(10 * time.Minute)
 		} else {
+			src.Eventf(corev1.EventTypeNormal,AnnotationLoadbalancer,fmt.Sprintf("cannot get dns loadbalancer '%s': %s", ref, err))
 			return nil, reconcile.Delay(logger, fmt.Errorf("cannot get dns loadbalancer '%s': %s", ref, err))
 		}
 	}

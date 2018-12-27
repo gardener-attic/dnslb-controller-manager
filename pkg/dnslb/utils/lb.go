@@ -2,7 +2,9 @@ package utils
 
 import (
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
+
 	"github.com/gardener/lib/pkg/resources"
+	"github.com/gardener/lib/pkg/utils"
 )
 
 var DNSLoadBalancerType = (*api.DNSLoadBalancer)(nil)
@@ -36,3 +38,19 @@ func (this *DNSLoadBalancerObject) Status() *api.DNSLoadBalancerStatus {
 func (this *DNSLoadBalancerObject) GetDNSName() string {
 	return this.DNSLoadBalancer().Spec.DNSName
 }
+
+func (this *DNSLoadBalancerObject) UpdateState(state, msg string) (bool, error) {
+	return this.Modify(func(data resources.ObjectData) (bool, error) {
+		lb := data.(*api.DNSLoadBalancer)
+		mod := utils.ModificationState{}
+		mod.AssureStringPtrValue(&lb.Status.State, api.STATE_ERROR)
+		if msg == "" {
+			mod.AssureStringPtrPtr(&lb.Status.Message, nil)
+
+		} else {
+			mod.AssureStringPtrPtr(&lb.Status.Message, &msg)
+		}
+		return mod.Modified, nil
+	})
+}
+

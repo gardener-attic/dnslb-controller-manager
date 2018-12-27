@@ -1,0 +1,34 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    dns.mandelsoft.org/dnsnames: echoheader.test.ringtest.dev.k8s.ondemand.com
+    loadbalancer.gardener.cloud/dnsloadbalancer: test
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-port-in-redirects: "true"
+  name: echoheaders
+  namespace: default
+spec:
+  rules:
+  - host: echoheader.ingress.dnslb-test.ringdev.shoot.dev.k8s-hana.ondemand.com
+    http:
+      paths:
+      - backend:
+          serviceName: echoheaders
+          servicePort: 80
+        path: /
+  - host: echoheader.test.ringtest.dev.k8s.ondemand.com
+    http:
+      paths:
+      - backend:
+          serviceName: echoheaders
+          servicePort: 80
+        path: /
+  - host: test.lb.test.ringtest.dev.k8s.ondemand.com
+    http:
+      paths:
+      - backend:
+          serviceName: echoheaders
+          servicePort: 80
+        path: /

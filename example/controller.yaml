@@ -29,12 +29,6 @@ rules:
       - list
       - update
       - watch
-  - apiGroups:
-      - ""
-    resources:
-      - services/status
-    verbs:
-      - update
 
   - apiGroups:
       - extensions
@@ -45,18 +39,6 @@ rules:
       - list
       - update
       - watch
-  - apiGroups:
-      - extensions
-    resources:
-      - ingresses/status
-    verbs:
-      - update
-  - apiGroups:
-      - extensions
-    resources:
-      - ingresses/status
-    verbs:
-      - update
 
   - apiGroups:
       - ""
@@ -66,11 +48,21 @@ rules:
       - get
 
   - apiGroups:
+      - dns.mandelsoft.org
+    resources:
+      - dnsproviders
+      - dnsentries
+    verbs:
+      - get
+      - list
+      - update
+      - watch
+
+  - apiGroups:
       - loadbalancer.gardener.cloud
     resources:
       - dnsloadbalancers
       - dnsloadbalancerendpoints
-      - dnsproviders
     verbs:
       - get
       - list

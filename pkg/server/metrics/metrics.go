@@ -44,7 +44,7 @@ var (
 	EndpointHealth = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "endpoint_health",
-			Help: "Health status of possible endpoints for DNSName Loadbalancers",
+			Help: "Health status of possible endpoints for dnsname Loadbalancers",
 		},
 		[]string{"loadbalancer", "endpoint"},
 	)
@@ -68,7 +68,7 @@ var (
 	EndpointActive = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "endpoint_active",
-			Help: "Health status of possible endpoints for DNSName Loadbalancers",
+			Help: "Health status of possible endpoints for dnsname Loadbalancers",
 		},
 		[]string{"loadbalancer", "endpoint"},
 	)
@@ -83,14 +83,14 @@ var (
 	LoadBalancers = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "loadbalancer_health",
-			Help: "Health status of DNSName Loadbalancers",
+			Help: "Health status of dnsname Loadbalancers",
 		},
 		[]string{"loadbalancer"},
 	)
 	LoadBalancerDNS = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "loadbalancer_dnsnames",
-			Help: "DNSName names for load balancers with health status",
+			Help: "dnsname names for load balancers with health status",
 		},
 		[]string{"loadbalancer", "dnsname"},
 	)
@@ -107,13 +107,13 @@ var (
 	DNSReconciler = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "dns_reconcile_interval",
-			Help: "duration between two DNSName reconcilations",
+			Help: "duration between two dnsname reconcilations",
 		},
 	)
 	DNSReconcileTime = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "dns_reconcile_duration",
-			Help: "duration of a DNSName reconcilation run",
+			Help: "duration of a dnsname reconcilation run",
 		},
 	)
 )

@@ -2,6 +2,7 @@ package lb
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"github.com/gardener/dnslb-controller-manager/pkg/crds"
-	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/lb/model"
+	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/lb/watch"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 
 	"github.com/mandelsoft/dns-controller-manager/pkg/dns/source"
@@ -27,6 +28,7 @@ type DNSLBSource struct {
 	source.DefaultDNSSource
 	state   *State
 	started time.Time
+	nxdomain net.IP
 }
 
 var _ source.DNSSource = &DNSLBSource{}
@@ -34,6 +36,16 @@ var _ source.DNSSource = &DNSLBSource{}
 func NewDNSLBSource(c controller.Interface) (source.DNSSource, error) {
 	var clientsets = c.GetDefaultCluster().Clientsets()
 
+	var ip net.IP
+	val, _ :=c.GetStringOption(OPT_BOGUS_NXDOMAIN)
+	if val!="" {
+		ip=net.ParseIP(val)
+		if ip!=nil {
+			c.Warnf("invalid ip address %q configured for bogus nxdomain", val)
+		} else {
+			c.Infof("using bogus nxdomain address %s", ip)
+		}
+	}
 	err := crds.RegisterCrds(clientsets)
 	if err != nil {
 		return nil, err
@@ -42,7 +54,7 @@ func NewDNSLBSource(c controller.Interface) (source.DNSSource, error) {
 		func() interface{} {
 			return NewState(c)
 		}).(*State)
-	return &DNSLBSource{state: state}, nil
+	return &DNSLBSource{state: state, nxdomain: ip}, nil
 }
 
 func (this *DNSLBSource) Setup() {
@@ -53,31 +65,32 @@ func (this *DNSLBSource) Start() {
 }
 
 func (this *DNSLBSource) GetDNSInfo(logger logger.LogContext, obj resources.Object, current *source.DNSCurrentState) (*source.DNSInfo, error) {
-	targets, done := this.GetTargets(logger, obj, current)
+	lb:=lbutils.DNSLoadBalancer(obj)
+	if lb.Spec().DNSName=="" {
+		lb.Copy().UpdateState(api.STATE_ERROR, "no dns name specicied")
+		return nil, fmt.Errorf("no dns name specicied")
+	}
+	targets, done, err := this.GetTargets(logger, obj, current)
+	if err != nil {
+	    return nil,err
+	}
 	info := &source.DNSInfo{Targets: targets, Feedback: done}
 	info.Names = utils.NewStringSet(obj.Data().(*api.DNSLoadBalancer).Spec.DNSName)
 	return info, nil
 }
 
-func (this *DNSLBSource) GetTargets(logger logger.LogContext, obj resources.Object, current *source.DNSCurrentState) (utils.StringSet, source.DNSFeedback) {
+func (this *DNSLBSource) GetTargets(logger logger.LogContext, obj resources.Object, current *source.DNSCurrentState) (utils.StringSet, source.DNSFeedback, error) {
 	now := metav1.Now()
 	lb := lbutils.DNSLoadBalancer(obj)
-	spec := lb.Spec()
-	singleton, err := this.IsSingleton(lb)
-	if err != nil {
 
-	}
-	w := &model.Watch{
-		DNSName:    spec.DNSName,
-		HealthPath: spec.HealthPath,
-		Singleton:  singleton,
-		StatusCode: spec.StatusCode,
-		DNSLB:      lb.Copy(),
-	}
+	w, err := watch.NewWatch(logger, lb, current, this.nxdomain)
+		if err != nil {
+		    return nil,nil,err
+		}
 	for _, o := range this.state.GetEndpoints(obj.ObjectName()) {
 		e := lbutils.DNSLoadBalancerEndpoint(o)
 		ep := e.DNSLoadBalancerEndpoint()
-		t := &model.Target{IPAddress: ep.Spec.IPAddress, Name: ep.Spec.CName, DNSEP: e}
+		t := &watch.Target{IPAddress: ep.Spec.IPAddress, Name: ep.Spec.CName, DNSEP: e}
 		if t.IsValid() {
 			if now.Time.Before(this.started.Add(3*time.Minute)) || !this.handleCleanup(logger, e, w, &now) {
 				w.Targets = append(w.Targets, t)
@@ -88,53 +101,11 @@ func (this *DNSLBSource) GetTargets(logger logger.LogContext, obj resources.Obje
 		}
 	}
 
-	m := model.NewModel(logger, current)
-	done := w.Handle(m)
-	return m.Get(), done
+	set, done:= w.Handle()
+	return set, done, nil
 }
 
-func (this *DNSLBSource) IsSingleton(lb *lbutils.DNSLoadBalancerObject) (bool, error) {
-	singleton := false
-	spec := lb.Spec()
-	if spec.Singleton != nil {
-		singleton = *spec.Singleton
-		if spec.Type != "" {
-			newlb := lb.Copy()
-			newlb.Status().State = "Error"
-			newlb.Status().Message = "invalid load balancer type: singleton and type specicied"
-			newlb.Update()
-			return false, fmt.Errorf("invalid load balancer type: singleton and type specicied")
-		}
-	}
-	switch spec.Type {
-	case api.LBTYPE_EXCLUSIVE:
-		singleton = true
-	case api.LBTYPE_BALANCED:
-		singleton = false
-	case "": // fill-in default
-		newlb := lb.Copy()
-		if singleton {
-			newlb.Spec().Type = api.LBTYPE_EXCLUSIVE
-		} else {
-			newlb.Spec().Type = api.LBTYPE_BALANCED
-		}
-		newlb.Spec().Singleton = nil
-		logger.Infof("adapt lb type for %s/%s", newlb.GetNamespace(), newlb.GetName())
-		newlb.Update()
-	default:
-		msg := "invalid load balancer type"
-		if lb.Status().Message != msg || lb.Status().State != "Error" {
-			newlb := lb.Copy()
-			newlb.Status().State = "Error"
-			newlb.Status().Message = msg
-			newlb.Update()
-		}
-		return false, fmt.Errorf(msg)
-	}
-	return singleton, nil
-}
-
-func (this *DNSLBSource) handleCleanup(logger logger.LogContext, e *lbutils.DNSLoadBalancerEndpointObject, w *model.Watch, threshold *metav1.Time) bool {
+func (this *DNSLBSource) handleCleanup(logger logger.LogContext, e *lbutils.DNSLoadBalancerEndpointObject, w *watch.Watch, threshold *metav1.Time) bool {
 	del := false
 	ep := e.DNSLoadBalancerEndpoint()
 	if ep.Status.ValidUntil != nil {
