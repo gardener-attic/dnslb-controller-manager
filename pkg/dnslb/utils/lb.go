@@ -3,8 +3,8 @@ package utils
 import (
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 
+	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile"
 	"github.com/gardener/lib/pkg/resources"
-	"github.com/gardener/lib/pkg/utils"
 )
 
 var DNSLoadBalancerType = (*api.DNSLoadBalancer)(nil)
@@ -40,17 +40,14 @@ func (this *DNSLoadBalancerObject) GetDNSName() string {
 }
 
 func (this *DNSLoadBalancerObject) UpdateState(state, msg string) (bool, error) {
-	return this.Modify(func(data resources.ObjectData) (bool, error) {
-		lb := data.(*api.DNSLoadBalancer)
-		mod := utils.ModificationState{}
-		mod.AssureStringPtrValue(&lb.Status.State, api.STATE_ERROR)
-		if msg == "" {
-			mod.AssureStringPtrPtr(&lb.Status.Message, nil)
+	mod := reconcile.NewModificationState(this)
+	status := this.Status()
+	mod.AssureStringPtrValue(&status.State, api.STATE_ERROR)
+	if msg == "" {
+		mod.AssureStringPtrPtr(&status.Message, nil)
 
-		} else {
-			mod.AssureStringPtrPtr(&lb.Status.Message, &msg)
-		}
-		return mod.Modified, nil
-	})
+	} else {
+		mod.AssureStringPtrPtr(&status.Message, &msg)
+	}
+	return mod.Modified, mod.Update()
 }
-

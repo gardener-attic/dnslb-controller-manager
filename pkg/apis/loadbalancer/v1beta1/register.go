@@ -47,6 +47,11 @@ var (
 	DNSProviderCRDName          = DNSProviderResourcePlural + "." + loadbalancer.GroupName
 )
 
+var (
+	LoadBalancerGroupKind = schema.GroupKind{GroupName,LoadBalancerResourceKind}
+	EnspointGroupKind = schema.GroupKind{GroupName,LoadBalancerEndpointResourceKind}
+)
+
 // Resource gets an LoadBalancer GroupResource for a specified resource
 func Resource(resource string) schema.GroupResource {
 	return SchemeGroupVersion.WithResource(resource).GroupResource()

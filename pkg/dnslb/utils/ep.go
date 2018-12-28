@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"fmt"
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 
+	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile"
 	"github.com/gardener/lib/pkg/resources"
-	"github.com/gardener/lib/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -45,24 +47,40 @@ func (this *DNSLoadBalancerEndpointObject) GetIPAddress() string {
 	return this.DNSLoadBalancerEndpoint().Spec.IPAddress
 }
 
-func (this *DNSLoadBalancerEndpointObject) GetLoadBalancerRef() resources.ClusterObjectKey {
-	return resources.NewClusterKey(this.GetCluster().GetId(),schema.GroupKind{api.GroupName, api.LoadBalancerResourceKind}, this.GetNamespace(),this.DNSLoadBalancerEndpoint().Spec.LoadBalancer)
+func (this *DNSLoadBalancerEndpointObject) GetLoadBalancerRef() *resources.ClusterObjectKey {
+	name := this.DNSLoadBalancerEndpoint().Spec.LoadBalancer
+	if name == "" {
+		return nil
+	}
+	key := resources.NewClusterKey(this.GetCluster().GetId(), schema.GroupKind{api.GroupName, api.LoadBalancerResourceKind}, this.GetNamespace(), name)
+	return &key
+}
+
+func (this *DNSLoadBalancerEndpointObject) Validate() error {
+	lbref := this.GetLoadBalancerRef()
+	if lbref == nil {
+		return fmt.Errorf("no load balancer specified")
+	}
+	o, err := this.GetCluster().Resources().GetCachedObject(lbref)
+	if errors.IsNotFound(err) || (err == nil && o.IsDeleting()) {
+		return fmt.Errorf("loadbalancer %q not found", lbref.ObjectName())
+	}
+	return nil
 }
 
 func (this *DNSLoadBalancerEndpointObject) UpdateState(state, msg string, healthy *bool) (bool, error) {
-	 return this.Modify(func(data resources.ObjectData) (bool, error) {
-		 ep := data.(*api.DNSLoadBalancerEndpoint)
-		 mod := utils.ModificationState{}
-		 mod.AssureStringPtrValue(&ep.Status.State, state)
-		 if msg == "" {
-			 mod.AssureStringPtrPtr(&ep.Status.Message, nil)
+	mod := reconcile.NewModificationState(this.Object)
+	status := this.Status()
+	mod.AssureStringPtrValue(&status.State, state)
+	if msg == "" {
+		mod.AssureStringPtrPtr(&status.Message, nil)
 
-		 } else {
-			 mod.AssureStringPtrPtr(&ep.Status.Message, &msg)
-		 }
-		 if healthy!=nil {
-			 mod.AssureBoolValue(&ep.Status.Healthy, *healthy)
-		 }
-		return mod.Modified, nil
-	})
+	} else {
+		mod.AssureStringPtrPtr(&status.Message, &msg)
+	}
+	if healthy != nil {
+		mod.AssureBoolValue(&status.Healthy, *healthy)
+	}
+	return mod.Modified, mod.Update()
+
 }

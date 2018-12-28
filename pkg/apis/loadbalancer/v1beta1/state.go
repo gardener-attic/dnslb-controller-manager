@@ -2,17 +2,16 @@ package v1beta1
 
 // common states
 
-const STATE_ERROR = "error"
-const STATE_INVALID = "invalid"
+const STATE_ERROR = "Error"
+const STATE_INVALID = "Invalid"
+const STATE_PENDING = "Pending"
 
 // load balancer states
 
-const STATE_UNREACHABLE = "unreachable"
-const STATE_HEALTHY = "healthy"
-
-const STATE_PENDING = "pending"
+const STATE_UNREACHABLE = "Unreachable"
+const STATE_HEALTHY = "Healthy"
 
 // endpoint states
 
-const STATE_ACTIVE = "active"
-const STATE_INACTIVE = "inactive"
+const STATE_ACTIVE = "Active"
+const STATE_INACTIVE = "Inactive"

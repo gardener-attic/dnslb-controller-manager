@@ -50,7 +50,7 @@ func (this *source_reconciler) newEndpoint(logger logger.LogContext, lb resource
 func (this *source_reconciler) updateEndpoint(logger logger.LogContext, oldep, newep resources.Object, lb resources.Object, src sources.Source) *reconcile.ModificationState {
 	n:=dnsutils.DNSLoadBalancerEndpoint(newep).DNSLoadBalancerEndpoint()
 	o:=dnsutils.DNSLoadBalancerEndpoint(oldep).DNSLoadBalancerEndpoint()
-	mod:=reconcile.NewModificationState(logger,oldep)
+	mod:=reconcile.NewModificationState(oldep)
 	mod.AssureLabel("controller", newep.GetLabel("controller"))
 	mod.AssureLabel("source", newep.GetLabel("source"))
 	mod.AssureLabel("cluster", newep.GetLabel("cluster"))

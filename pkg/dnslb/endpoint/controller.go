@@ -51,7 +51,7 @@ func init() {
 }
 
 func SlaveResources(c controller.Interface) []resources.Interface {
-	res, err:= c.GetDefaultCluster().Resources().Get(endpointGK)
+	res, err:= c.GetMainCluster().Resources().Get(endpointGK)
 	if err!=nil {
 		panic(fmt.Errorf("resources type %s not found: %s", endpointGK, err))
 	}

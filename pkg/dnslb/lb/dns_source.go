@@ -26,21 +26,22 @@ var KEY_STATE = reflect.TypeOf((*State)(nil))
 
 type DNSLBSource struct {
 	source.DefaultDNSSource
-	state   *State
-	started time.Time
-	nxdomain net.IP
+	controller controller.Interface
+	state      *State
+	started    time.Time
+	nxdomain   net.IP
 }
 
 var _ source.DNSSource = &DNSLBSource{}
 
 func NewDNSLBSource(c controller.Interface) (source.DNSSource, error) {
-	var clientsets = c.GetDefaultCluster().Clientsets()
+	var clientsets = c.GetMainCluster().Clientsets()
 
 	var ip net.IP
-	val, _ :=c.GetStringOption(OPT_BOGUS_NXDOMAIN)
-	if val!="" {
-		ip=net.ParseIP(val)
-		if ip!=nil {
+	val, _ := c.GetStringOption(OPT_BOGUS_NXDOMAIN)
+	if val != "" {
+		ip = net.ParseIP(val)
+		if ip != nil {
 			c.Warnf("invalid ip address %q configured for bogus nxdomain", val)
 		} else {
 			c.Infof("using bogus nxdomain address %s", ip)
@@ -54,7 +55,7 @@ func NewDNSLBSource(c controller.Interface) (source.DNSSource, error) {
 		func() interface{} {
 			return NewState(c)
 		}).(*State)
-	return &DNSLBSource{state: state, nxdomain: ip}, nil
+	return &DNSLBSource{controller: c, state: state, nxdomain: ip}, nil
 }
 
 func (this *DNSLBSource) Setup() {
@@ -65,18 +66,27 @@ func (this *DNSLBSource) Start() {
 }
 
 func (this *DNSLBSource) GetDNSInfo(logger logger.LogContext, obj resources.Object, current *source.DNSCurrentState) (*source.DNSInfo, error) {
-	lb:=lbutils.DNSLoadBalancer(obj)
-	if lb.Spec().DNSName=="" {
-		lb.Copy().UpdateState(api.STATE_ERROR, "no dns name specicied")
+	lb := lbutils.DNSLoadBalancer(obj)
+	if lb.Spec().DNSName == "" {
+		lb.Copy().UpdateState(api.STATE_ERROR, "no dns name specified")
 		return nil, fmt.Errorf("no dns name specicied")
 	}
 	targets, done, err := this.GetTargets(logger, obj, current)
 	if err != nil {
-	    return nil,err
+		return nil, err
 	}
 	info := &source.DNSInfo{Targets: targets, Feedback: done}
 	info.Names = utils.NewStringSet(obj.Data().(*api.DNSLoadBalancer).Spec.DNSName)
 	return info, nil
+}
+
+func (this *DNSLBSource) Deleted(logger logger.LogContext, key resources.ClusterObjectKey) {
+	logger.Infof("loadbalancer is deleting -> reschedule all endpoint objects")
+	for _, o := range this.state.GetEndpointsFor(key) {
+		logger.Infof("reschedule endpoint %q", o.ObjectName())
+		this.controller.Enqueue(o)
+	}
+	this.DefaultDNSSource.Deleted(logger,key)
 }
 
 func (this *DNSLBSource) GetTargets(logger logger.LogContext, obj resources.Object, current *source.DNSCurrentState) (utils.StringSet, source.DNSFeedback, error) {
@@ -84,10 +94,10 @@ func (this *DNSLBSource) GetTargets(logger logger.LogContext, obj resources.Obje
 	lb := lbutils.DNSLoadBalancer(obj)
 
 	w, err := watch.NewWatch(logger, lb, current, this.nxdomain)
-		if err != nil {
-		    return nil,nil,err
-		}
-	for _, o := range this.state.GetEndpoints(obj.ObjectName()) {
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, o := range this.state.GetEndpointsFor(obj.ClusterKey()) {
 		e := lbutils.DNSLoadBalancerEndpoint(o)
 		ep := e.DNSLoadBalancerEndpoint()
 		t := &watch.Target{IPAddress: ep.Spec.IPAddress, Name: ep.Spec.CName, DNSEP: e}
@@ -101,7 +111,7 @@ func (this *DNSLBSource) GetTargets(logger logger.LogContext, obj resources.Obje
 		}
 	}
 
-	set, done:= w.Handle()
+	set, done := w.Handle()
 	return set, done, nil
 }
 

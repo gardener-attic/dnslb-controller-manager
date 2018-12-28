@@ -1,15 +1,13 @@
 package lb
 
 import (
-	"fmt"
+	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
+	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
+
 	"github.com/gardener/lib/pkg/controllermanager/controller"
 	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile"
 	"github.com/gardener/lib/pkg/logger"
 	"github.com/gardener/lib/pkg/resources"
-	"k8s.io/apimachinery/pkg/api/errors"
-
-	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
-	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 )
 
 func StateReconciler(c controller.Interface) (reconcile.Interface, error) {
@@ -35,12 +33,21 @@ func (this *stateReconciler) Reconcile(logger logger.LogContext, obj resources.O
 
 	this.state.UpdateEndpoint(logger, obj)
 	ep:=lbutils.DNSLoadBalancerEndpoint(obj)
-	lbref:=ep.GetLoadBalancerRef()
-	_,err:=obj.GetCluster().Resources().GetCachedObject(lbref)
-	if errors.IsNotFound(err) {
-		ep.UpdateState(api.STATE_ERROR,fmt.Sprintf("loadbalancer %q not found", lbref), nil)
+	err:=ep.Validate()
+	mod:=false
+	if err!=nil {
+		mod,err=ep.UpdateState(api.STATE_INVALID,err.Error(), nil)
+	} else {
+		if reconcile.StringEqual(ep.Status().State, api.STATE_INVALID) {
+			mod,err=ep.UpdateState(api.STATE_PENDING,"", nil)
+		}
 	}
-	return reconcile.Succeeded(logger)
+	if mod {
+		logger.Warnf("changing state to %s(%s)",
+			reconcile.StringValue(ep.Status().State),
+			reconcile.StringValue(ep.Status().Message))
+	}
+	return reconcile.UpdateStatus(logger, err)
 
 }
 
