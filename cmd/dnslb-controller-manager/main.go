@@ -4,9 +4,9 @@ import (
 	_ "github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint"
 	_ "github.com/gardener/dnslb-controller-manager/pkg/dnslb/lb"
 
-	"github.com/gardener/lib/pkg/controllermanager"
-	"github.com/gardener/lib/pkg/controllermanager/cluster"
-	"github.com/gardener/lib/pkg/controllermanager/controller/mappings"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/cluster"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/mappings"
 )
 
 func main() {

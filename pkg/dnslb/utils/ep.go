@@ -2,11 +2,11 @@ package utils
 
 import (
 	"fmt"
+
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile"
-	"github.com/gardener/lib/pkg/resources"
+	"github.com/gardener/controller-manager-library/pkg/resources"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -69,7 +69,7 @@ func (this *DNSLoadBalancerEndpointObject) Validate() error {
 }
 
 func (this *DNSLoadBalancerEndpointObject) UpdateState(state, msg string, healthy *bool) (bool, error) {
-	mod := reconcile.NewModificationState(this.Object)
+	mod := resources.NewModificationState(this.Object)
 	status := this.Status()
 	mod.AssureStringPtrValue(&status.State, state)
 	if msg == "" {

@@ -3,18 +3,16 @@
 The *DNS Load Balancer Controller Manager* hosts kubernetes controllers managing
 DNS entries acting as kind of load balancer. Depending on health checks on
 explicitly maintained endpoints the endpoints are added or removed from an DNS
-entry.
+entry. In order words it acts as a DNS source controller, and the DNS entries are
+provisioned to an external DNS server with the help of a separately running DNS provisioning
+controller. See project [external-dns-management](https://github.com/gardener/external-dns-management) for more details.
 
 It is primarily designed to support multi-cluster loadbalancing (see below)
 
-It defines 3 new resource kinds using the api group `loadbalancer.gardener.cloud`
+It defines 2 new resource kinds using the api group `loadbalancer.gardener.cloud`
 and version `v1beta1`.
-- `DNSProvider`: A resource describing a dedicated DNS access
 - `DNSLoadBalancer`: a resource describing a dedicated load balancer defining the DNS name and the health check
 - `DNSLoadBalancerEndpoint`: a resource describing a dedicated load balancer target endpoint
-
-The following DNS Provider types are supported so far:
-- AWS Route53
 
 
 ## Controllers
@@ -23,11 +21,9 @@ The controller manager hosts two different controllers:
 
 ### DNS Controller
 
-The DNS Controller uses the resources decribed above to main DNS entries.
-Is uses the DNSProvider resources to get access to various DNS accounts with
-different hosted zones. The matching provider for the DNS name of an `DNSLoadBalancer` 
-is determined automatically. The `DNSLoadBalancerEndpoint`resources are used
-as potential targets for the maintained DNS names.
+The DNS Controller uses the resources described above to main DNS entries.
+The `DNSLoadBalancerEndpoint`resources are used as potential targets for the 
+maintained DNS names.
 
 ### DNS Endpoint Controller
 
@@ -54,7 +50,7 @@ controller scans the default (source) cluster for service and ingress resources
 and expects the load balancer and endpoint resources to be maintained in the
 second cluster.
 
-The dns controller acts on the second cluster to look for DNS providers,
+The dns controller acts on the second cluster to look for
 loadbalancers and endpoints to maintain the desired DNS entries.
 
 This second cluster should be shared among the various source clusters to
@@ -78,13 +74,7 @@ in the complete landscape, even if started with each controller manager instance
 
 If the `--watches` option is used, the DNS controller doesn't use the custom
 resources for the load balancer but reads the definitions from the given
-config file (legacy mode). In combination with using the static DNS providers
-this mode can be used to work standalone.
-
-If the `--providers` option is used to select a static provider, every
-supported DNS provider type may provide a default provider according to
-the environment settings. If the value `dynamic` (default) is specified, only
-the `DNSProvider` resources found in the target cluster are used.
+config file (legacy mode).
 
 ## Command Line Interface
 
@@ -99,23 +89,30 @@ Usage:
   dnslb-controller-manager [flags]
 
 Flags:
-      --cluster string       Cluster identity
-      --controllers string   Comma separated list of controllers to start (<name>,source,target,all) (default "all")
-      --dry-run              Dry run for DNS controller
-      --duration int         Runtime before stop (in seconds)
-  -h, --help                 help for dnslb-controller-manager
-      --identity string      DNS record identifer (default "GardenRing")
-      --interval int         DNS check/update interval in seconds (default 30)
-      --kubeconfig string    path to the kubeconfig file
-  -D, --log-level string     log level (default "info")
-      --once                 only one update instread of loop
-      --plugin-dir string    directory containing go plugins for DNS provider types
-      --port int             http server endpoint port for health-check (default: 0=no server)
-      --providers string     Selection mode for DNS providers (static,dynamic,all,<type name>) (default "dynamic")
-      --targetkube string    path to the kubeconfig file for shared virtual cluster
-      --ttl int              DNS record ttl in seconds (default 60)
-      --watches string       config file for watches
-
+      --bogus-nxdomain string                            default for all controller "bogus-nxdomain" options
+  -c, --controllers string                               comma separated list of controllers to start (<name>,source,target,all) (default "all")
+      --dnslb-endpoint.endpoints.pool.size int           worker pool size for pool endpoints of controller dnslb-endpoint
+      --dnslb-loadbalancer.bogus-nxdomain string         ip address returned by DNS for unknown domain
+      --dnslb-loadbalancer.default.pool.size int         worker pool size for pool default of controller dnslb-loadbalancer
+      --dnslb-loadbalancer.exclude-domains stringArray   excluded domains
+      --dnslb-loadbalancer.key string                    selecting key for annotation
+      --dnslb-loadbalancer.target-name-prefix string     name prefix in target namespace for cross cluster generation
+      --dnslb-loadbalancer.target-namespace string       target namespace for cross cluster generation
+      --dnslb-loadbalancer.targets.pool.size int         worker pool size for pool targets of controller dnslb-loadbalancer
+      --exclude-domains stringArray                      default for all controller "exclude-domains" options
+  -h, --help                                             help for dnslb-controller-manager
+      --key string                                       default for all controller "key" options
+      --kubeconfig string                                default cluster access
+      --kubeconfig.id string                             id for cluster default
+  -D, --log-level string                                 logrus log level
+  -n, --namespace-local-access-only                      enable access restriction for namespace local access only
+      --plugin-dir string                                directory containing go plugins
+      --pool.size int                                    default for all controller "pool.size" options
+      --server-port-http int                             directory containing go plugins
+      --target string                                    target cluster for dns requests
+      --target-name-prefix string                        default for all controller "target-name-prefix" options
+      --target-namespace string                          default for all controller "target-namespace" options
+      --target.id string                                 id for cluster target
 ```
 
 ## Custom Resource Definitions
@@ -168,51 +165,6 @@ The `validUtil` status property is managed by the
 endpoint controller, if the loadbalancer resource requests it
 by specifying a validity interval for endpoints.
  
-### DNS Provider
-
-```
-apiVersion: loadbalancer.gardener.cloud/v1beta1
-kind: DNSProvider
-metadata:
-  name: aws
-  namespace: acme
-spec:
-  type: aws
-  scope: 
-    type: Selected  # or Cluster/Namespace
-    namespaces:
-	  - acme
-  secretRef:
-    name: route53
-```
-
-A provider may only be used for a load balancer resource if it is in the scope
-of the provider. The following scopes are supported:
-
-- `Cluster`: (default) valid for all namespaces in kubernetes cluster
-- `Namespace`: only valid for the namespace of the provider resource
-- `Selected`: valid for the explicitly managed namespace list in property `namespaces`
-
-
-## Supported DNS Provider Types
-
-For every provider type multiple provider (with different credentials)
-may be configured by deploying the appropriate `DNSProvider` resources.
-
-Additional provider types can be added by go plugins (see below).
-Plugins are enabled by specifying the `--plugin-dir` option.
-
-### AWS Route53 
-
-The AWS Route53 provider type is selected by using the type name `aws`.
-
-The secret must have the fields:
-
-|Name|Meaning|
-|--|--|
-|AWS_ACCESS_KEY_ID|The aws access key id|
-|AWS_SECRET_ACCESS_KEY|The aws secret access key|
-
 ## HTTP Endpoints
 
 If the controller manager is called with the `--port` option using a value larger
@@ -247,24 +199,3 @@ It supports five metrics:
 | |`dnsname`| DNS name of the load balancer |
 | `dns_reconcile_duration` | | Duration of a DNS reconcilation run |
 | `dns_reconcile_interval` | | Duration between two DNS reconcilations |
-
-## Plugins
-
-Go plugins can be used to add new independently developed DNS provider types.
-The plugins must be placed in a dedicated folder, which is specified 
-by the `--plugin-dir`  option
-
-A DNS provider type must implement the 
-[`DNSProviderType`](pkg/controller/dns/provider/type.go#L27) interface found in package 
-`github.com/gardener/dnslb-controller-manager/pkg/controller/dns/provider`.
-
-The main package must provide a variable called `Name` of type `string` containing
-the name of the plugin. To register a provider type it has to implement an
-`init` function registering the provided provider types. For example:
-
-		func init() {
-			provider.RegisterProviderType("aws", &AWSProviderType{})
-		}
-		
-The specified name can then be used in the `DNSProvider` kubernetes resources
-to add a dedicated set of hosted zones handled by this provider type.

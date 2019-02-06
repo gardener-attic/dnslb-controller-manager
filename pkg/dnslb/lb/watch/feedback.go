@@ -19,12 +19,12 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/mandelsoft/dns-controller-manager/pkg/dns/source"
+	"github.com/gardener/external-dns-management/pkg/dns/source"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/metrics"
-	"github.com/gardener/lib/pkg/logger"
+	"github.com/gardener/controller-manager-library/pkg/logger"
 
 	corev1 "k8s.io/api/core/v1"
 )

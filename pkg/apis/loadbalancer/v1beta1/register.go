@@ -15,7 +15,7 @@
 package v1beta1
 
 import (
-	"github.com/gardener/lib/pkg/resources"
+	"github.com/gardener/controller-manager-library/pkg/resources"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	Version = "v1beta1"
+	Version   = "v1beta1"
 	GroupName = loadbalancer.GroupName
 
 	LoadBalancerResourceKind   = "DNSLoadBalancer"
@@ -32,9 +32,6 @@ const (
 
 	LoadBalancerEndpointResourceKind   = "DNSLoadBalancerEndpoint"
 	LoadBalancerEndpointResourcePlural = "dnsloadbalancerendpoints"
-
-	DNSProviderResourceKind   = "DNSProvider"
-	DNSProviderResourcePlural = "dnsproviders"
 )
 
 var (
@@ -44,12 +41,11 @@ var (
 	SchemeGroupVersion          = schema.GroupVersion{Group: loadbalancer.GroupName, Version: Version}
 	LoadBalancerCRDName         = LoadBalancerResourcePlural + "." + loadbalancer.GroupName
 	LoadBalancerEndpointCRDName = LoadBalancerEndpointResourcePlural + "." + loadbalancer.GroupName
-	DNSProviderCRDName          = DNSProviderResourcePlural + "." + loadbalancer.GroupName
 )
 
 var (
-	LoadBalancerGroupKind = schema.GroupKind{GroupName,LoadBalancerResourceKind}
-	EnspointGroupKind = schema.GroupKind{GroupName,LoadBalancerEndpointResourceKind}
+	LoadBalancerGroupKind         = schema.GroupKind{GroupName, LoadBalancerResourceKind}
+	LoadBalancerEndpointGroupKind = schema.GroupKind{GroupName, LoadBalancerEndpointResourceKind}
 )
 
 // Resource gets an LoadBalancer GroupResource for a specified resource
@@ -68,7 +64,6 @@ func addKnownTypes(s *runtime.Scheme) error {
 	metav1.AddToGroupVersion(s, SchemeGroupVersion)
 	return nil
 }
-
 
 func init() {
 

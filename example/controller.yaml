@@ -48,9 +48,8 @@ rules:
       - get
 
   - apiGroups:
-      - dns.mandelsoft.org
+      - dns.gardener.cloud
     resources:
-      - dnsproviders
       - dnsentries
     verbs:
       - get

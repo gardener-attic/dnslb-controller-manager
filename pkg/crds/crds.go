@@ -13,8 +13,8 @@
 package crds
 
 import (
-	"github.com/gardener/lib/pkg/clientsets"
-	"github.com/gardener/lib/pkg/clientsets/apiextensions"
+	"github.com/gardener/controller-manager-library/pkg/clientsets"
+	"github.com/gardener/controller-manager-library/pkg/clientsets/apiextensions"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"

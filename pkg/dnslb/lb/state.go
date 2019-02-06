@@ -2,9 +2,9 @@ package lb
 
 import (
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
-	"github.com/gardener/lib/pkg/controllermanager/controller"
-	"github.com/gardener/lib/pkg/logger"
-	"github.com/gardener/lib/pkg/resources"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller"
+	"github.com/gardener/controller-manager-library/pkg/logger"
+	"github.com/gardener/controller-manager-library/pkg/resources"
 	"k8s.io/apimachinery/pkg/labels"
 )
 

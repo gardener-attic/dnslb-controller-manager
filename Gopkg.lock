@@ -18,46 +18,6 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
-  digest = "1:a3bab9fedddd40da0ad97a73afc66881ac83bbb30343aff84fc4dd4f52cbcf83"
-  name = "github.com/aws/aws-sdk-go"
-  packages = [
-    "aws",
-    "aws/awserr",
-    "aws/awsutil",
-    "aws/client",
-    "aws/client/metadata",
-    "aws/corehandlers",
-    "aws/credentials",
-    "aws/credentials/ec2rolecreds",
-    "aws/credentials/endpointcreds",
-    "aws/credentials/processcreds",
-    "aws/credentials/stscreds",
-    "aws/csm",
-    "aws/defaults",
-    "aws/ec2metadata",
-    "aws/endpoints",
-    "aws/request",
-    "aws/session",
-    "aws/signer/v4",
-    "internal/ini",
-    "internal/sdkio",
-    "internal/sdkrand",
-    "internal/sdkuri",
-    "internal/shareddefaults",
-    "private/protocol",
-    "private/protocol/query",
-    "private/protocol/query/queryutil",
-    "private/protocol/rest",
-    "private/protocol/restxml",
-    "private/protocol/xml/xmlutil",
-    "service/route53",
-    "service/sts",
-  ]
-  pruneopts = "NUT"
-  revision = "a21788f1964e28dc1e3932e595db6707ce8070cf"
-  version = "v1.16.7"
-
-[[projects]]
   branch = "master"
   digest = "1:707ebe952a8b3d00b343c01536c79c73771d100f63ec6babeaed5c79e2b8a8dd"
   name = "github.com/beorn7/perks"
@@ -86,8 +46,8 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:12b099373f8d92023d62f4a98574cc2c92e74af57d3c6a32d17d8ad0ac9503a0"
-  name = "github.com/gardener/lib"
+  digest = "1:0a8d6c21ebc19dc9444538b50eae3eacff9935d7b75cb038ca389629036818bc"
+  name = "github.com/gardener/controller-manager-library"
   packages = [
     "pkg/apis/gardenextensions",
     "pkg/apis/gardenextensions/v1alpha1",
@@ -100,6 +60,7 @@
     "pkg/client/gardenextensions/informers/externalversions/internalinterfaces",
     "pkg/client/gardenextensions/listers/gardenextensions/v1alpha1",
     "pkg/clientsets",
+    "pkg/clientsets/apiextensions",
     "pkg/clientsets/gardenextensions",
     "pkg/clientsets/kubernetes",
     "pkg/controllermanager",
@@ -109,20 +70,37 @@
     "pkg/controllermanager/controller/groups",
     "pkg/controllermanager/controller/mappings",
     "pkg/controllermanager/controller/reconcile",
+    "pkg/controllermanager/controller/reconcile/reconcilers",
     "pkg/ctxutil",
+    "pkg/fieldpath",
     "pkg/informerfactories",
     "pkg/informerfactories/gardenextensions",
     "pkg/informerfactories/kubernetes",
     "pkg/kutil",
     "pkg/logger",
     "pkg/resources",
+    "pkg/resources/access",
     "pkg/server",
     "pkg/server/healthz",
     "pkg/utils",
   ]
   pruneopts = "NUT"
-  revision = "97dbe78d9563f4cc5fd0dbc58d8b5e88d2941878"
-  source = "github.wdf.sap.corp/d065849/lib"
+  revision = "0fca1b88680c536e87565644ff0a18a448f55bcf"
+
+[[projects]]
+  branch = "master"
+  digest = "1:c1ce44412d46efe53f4da5ba78392f7d5a3b2f5769278c3e090b7a9063432817"
+  name = "github.com/gardener/external-dns-management"
+  packages = [
+    "pkg/apis/dns",
+    "pkg/apis/dns/v1alpha1",
+    "pkg/crds",
+    "pkg/dns",
+    "pkg/dns/source",
+    "pkg/dns/utils",
+  ]
+  pruneopts = "NUT"
+  revision = "9a8b9435b91c759ef187858df90326ec84d52c4e"
 
 [[projects]]
   digest = "1:81466b4218bf6adddac2572a30ac733a9255919bc2f470b4827a317bd4ee1756"
@@ -271,13 +249,6 @@
   version = "v1.0"
 
 [[projects]]
-  digest = "1:1f2aebae7e7c856562355ec0198d8ca2fa222fb05e5b1b66632a1fce39631885"
-  name = "github.com/jmespath/go-jmespath"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "c2b33e84"
-
-[[projects]]
   digest = "1:8e36686e8b139f8fe240c1d5cf3a145bc675c22ff8e707857cdd3ae17b00d728"
   name = "github.com/json-iterator/go"
   packages = ["."]
@@ -304,19 +275,6 @@
   ]
   pruneopts = "NUT"
   revision = "60711f1a8329503b04e1c88535f419d0bb440bff"
-
-[[projects]]
-  branch = "master"
-  digest = "1:e7bcc4f716bfa1b5dee7bd7d6862c58db7197bf6bc3a2b8f1a28594ed9304471"
-  name = "github.com/mandelsoft/dns-controller-manager"
-  packages = [
-    "pkg/apis/dns",
-    "pkg/apis/dns/v1alpha1",
-    "pkg/dns/source",
-    "pkg/dns/utils",
-  ]
-  pruneopts = "NUT"
-  revision = "e3edb04d49ef52baf5f9c72eb82b086210828eae"
 
 [[projects]]
   digest = "1:5985ef4caf91ece5d54817c11ea25f182697534f8ae6521eadcd628c142ac4b6"
@@ -658,11 +616,12 @@
   version = "kubernetes-1.12.0"
 
 [[projects]]
-  digest = "1:642eca4c6372edea42e74cd173f1f5ea7d4a047ea5fe2015001dbb5f90c29391"
+  digest = "1:51f330b7a61ac0e8b6e082490586ff2b18008eb514a67eccbe5ec78ffd32ee25"
   name = "k8s.io/apiextensions-apiserver"
   packages = [
     "pkg/apis/apiextensions",
     "pkg/apis/apiextensions/v1beta1",
+    "pkg/client/clientset/clientset",
     "pkg/client/clientset/clientset/scheme",
     "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
   ]
@@ -943,28 +902,27 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/aws/aws-sdk-go/aws",
-    "github.com/aws/aws-sdk-go/aws/credentials",
-    "github.com/aws/aws-sdk-go/aws/session",
-    "github.com/aws/aws-sdk-go/service/route53",
-    "github.com/gardener/lib/pkg/controllermanager",
-    "github.com/gardener/lib/pkg/controllermanager/controller",
-    "github.com/gardener/lib/pkg/logger",
-    "github.com/gardener/lib/pkg/resources",
-    "github.com/gardener/lib/pkg/utils",
-    "github.com/ghodss/yaml",
-    "github.com/mandelsoft/dns-controller-manager/pkg/apis/dns/v1alpha1",
-    "github.com/mandelsoft/dns-controller-manager/pkg/dns/source",
+    "github.com/gardener/controller-manager-library/pkg/clientsets",
+    "github.com/gardener/controller-manager-library/pkg/clientsets/apiextensions",
+    "github.com/gardener/controller-manager-library/pkg/controllermanager",
+    "github.com/gardener/controller-manager-library/pkg/controllermanager/cluster",
+    "github.com/gardener/controller-manager-library/pkg/controllermanager/controller",
+    "github.com/gardener/controller-manager-library/pkg/controllermanager/controller/mappings",
+    "github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile",
+    "github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile/reconcilers",
+    "github.com/gardener/controller-manager-library/pkg/logger",
+    "github.com/gardener/controller-manager-library/pkg/resources",
+    "github.com/gardener/controller-manager-library/pkg/server",
+    "github.com/gardener/controller-manager-library/pkg/utils",
+    "github.com/gardener/external-dns-management/pkg/dns/source",
     "github.com/onsi/ginkgo",
     "github.com/onsi/gomega",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/sirupsen/logrus",
-    "github.com/spf13/cobra",
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
-    "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/labels",
@@ -973,28 +931,13 @@
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/runtime",
-    "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/watch",
     "k8s.io/client-go/discovery",
     "k8s.io/client-go/discovery/fake",
-    "k8s.io/client-go/informers",
-    "k8s.io/client-go/informers/core/v1",
-    "k8s.io/client-go/informers/extensions/v1beta1",
-    "k8s.io/client-go/kubernetes",
-    "k8s.io/client-go/kubernetes/scheme",
-    "k8s.io/client-go/kubernetes/typed/core/v1",
-    "k8s.io/client-go/listers/core/v1",
-    "k8s.io/client-go/listers/extensions/v1beta1",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/testing",
     "k8s.io/client-go/tools/cache",
-    "k8s.io/client-go/tools/clientcmd",
-    "k8s.io/client-go/tools/clientcmd/api",
-    "k8s.io/client-go/tools/leaderelection",
-    "k8s.io/client-go/tools/leaderelection/resourcelock",
-    "k8s.io/client-go/tools/record",
     "k8s.io/client-go/util/flowcontrol",
-    "k8s.io/client-go/util/workqueue",
     "k8s.io/code-generator/cmd/client-gen",
     "k8s.io/code-generator/cmd/conversion-gen",
     "k8s.io/code-generator/cmd/deepcopy-gen",

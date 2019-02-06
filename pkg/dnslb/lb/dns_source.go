@@ -14,12 +14,12 @@ import (
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/lb/watch"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 
-	"github.com/mandelsoft/dns-controller-manager/pkg/dns/source"
+	"github.com/gardener/external-dns-management/pkg/dns/source"
 
-	"github.com/gardener/lib/pkg/controllermanager/controller"
-	"github.com/gardener/lib/pkg/logger"
-	"github.com/gardener/lib/pkg/resources"
-	"github.com/gardener/lib/pkg/utils"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller"
+	"github.com/gardener/controller-manager-library/pkg/logger"
+	"github.com/gardener/controller-manager-library/pkg/resources"
+	"github.com/gardener/controller-manager-library/pkg/utils"
 )
 
 var KEY_STATE = reflect.TypeOf((*State)(nil))
@@ -69,7 +69,7 @@ func (this *DNSLBSource) GetDNSInfo(logger logger.LogContext, obj resources.Obje
 	lb := lbutils.DNSLoadBalancer(obj)
 	if lb.Spec().DNSName == "" {
 		lb.Copy().UpdateState(api.STATE_ERROR, "no dns name specified")
-		return nil, fmt.Errorf("no dns name specicied")
+		return nil, fmt.Errorf("no dns name specified")
 	}
 	targets, done, err := this.GetTargets(logger, obj, current)
 	if err != nil {
@@ -86,7 +86,7 @@ func (this *DNSLBSource) Deleted(logger logger.LogContext, key resources.Cluster
 		logger.Infof("reschedule endpoint %q", o.ObjectName())
 		this.controller.Enqueue(o)
 	}
-	this.DefaultDNSSource.Deleted(logger,key)
+	this.DefaultDNSSource.Deleted(logger, key)
 }
 
 func (this *DNSLBSource) GetTargets(logger logger.LogContext, obj resources.Object, current *source.DNSCurrentState) (utils.StringSet, source.DNSFeedback, error) {

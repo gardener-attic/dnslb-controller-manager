@@ -4,10 +4,10 @@ import (
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 
-	"github.com/gardener/lib/pkg/controllermanager/controller"
-	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile"
-	"github.com/gardener/lib/pkg/logger"
-	"github.com/gardener/lib/pkg/resources"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile"
+	"github.com/gardener/controller-manager-library/pkg/logger"
+	"github.com/gardener/controller-manager-library/pkg/resources"
 )
 
 func StateReconciler(c controller.Interface) (reconcile.Interface, error) {

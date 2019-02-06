@@ -7,10 +7,10 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/gardener/lib/pkg/logger"
-	"github.com/gardener/lib/pkg/utils"
+	"github.com/gardener/controller-manager-library/pkg/logger"
+	"github.com/gardener/controller-manager-library/pkg/utils"
 
-	"github.com/mandelsoft/dns-controller-manager/pkg/dns/source"
+	"github.com/gardener/external-dns-management/pkg/dns/source"
 
 	//api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
@@ -270,8 +270,8 @@ func IsSingleton(logger logger.LogContext, lb *lbutils.DNSLoadBalancerObject) (b
 	if spec.Singleton != nil {
 		singleton = *spec.Singleton
 		if spec.Type != "" {
-			lb.Copy().UpdateState(api.STATE_ERROR,"invalid load balancer type: singleton and type specicied")
-			return false, fmt.Errorf("invalid load balancer type: singleton and type specicied")
+			lb.Copy().UpdateState(api.STATE_ERROR,"invalid load balancer type: singleton and type specified")
+			return false, fmt.Errorf("invalid load balancer type: singleton and type specified")
 		}
 	}
 	switch spec.Type {
