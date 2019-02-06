@@ -1,7 +1,7 @@
 package sources
 
 import (
-	"github.com/gardener/lib/pkg/resources"
+	"github.com/gardener/controller-manager-library/pkg/resources"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 

@@ -9,12 +9,12 @@ required = [
 ]
 
 [[constraint]]
-  name = "github.com/gardener/lib"
-  source = "github.wdf.sap.corp/d065849/lib"
+  branch = "master"
+  name = "github.com/gardener/controller-manager-library"
 
 [[constraint]]
-  name = "github.com/mandelsoft/dns-controller-manager"
-
+  branch = "master"
+  name = "github.com/gardener/external-dns-management"
 
 [[constraint]]
   name = "github.com/prometheus/client_golang"

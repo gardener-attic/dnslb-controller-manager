@@ -212,12 +212,6 @@ This project includes the following subcomponents that are subject to separate l
 Your use of these subcomponents is subject to the separate license terms applicable to
 each subcomponent.
 
-AWS SDK for Go  
-https://github.com/aws/aws-sdk-go/  
-Copyright 2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.   
-Copyright 2014-2015 Stripe, Inc.  
-Apache 2 license (https://github.com/aws/aws-sdk-go/blob/master/LICENSE.txt)
-
 go-spew  
 https://github.com/davecgh/go-spew  
 Copyright (c) 2012-2016 Dave Collins <dave@davec.name>  
@@ -232,11 +226,6 @@ YAML marshaling and unmarshaling support for Go
 https://github.com/ghodss/yaml  
 Copyright (c) 2014 Sam Ghods  
 MIT license (https://github.com/ghodss/yaml/blob/master/LICENSE)
-
-ini, provides INI file read and write functionality in Go  
-https://github.com/go-ini/ini  
-Copyright 2014 Unknwon  
-Apache 2 license (https://github.com/go-ini/ini/blob/master/LICENSE)
 
 gojsonpointer  
 https://github.com/go-openapi/jsonpointer  

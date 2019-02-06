@@ -15,15 +15,15 @@
 package endpoint
 
 import (
-	"fmt"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/cluster"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile/reconcilers"
+	"github.com/gardener/controller-manager-library/pkg/resources"
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
-	"github.com/gardener/lib/pkg/controllermanager/cluster"
-	"github.com/gardener/lib/pkg/controllermanager/controller"
-	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile/reconcilers"
-	"github.com/gardener/lib/pkg/resources"
 
 	_ "github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources/ingress"
 	_ "github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources/service"
+
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 )
@@ -32,10 +32,11 @@ const AnnotationLoadbalancer = api.GroupName + "/dnsloadbalancer"
 
 const TARGET_CLUSTER = "target"
 
-var endpointGK=resources.NewGroupKind(api.GroupName, api.LoadBalancerEndpointResourceKind)
+var serviceGK = resources.NewGroupKind(corev1.GroupName, "Service")
+var ingressGK = resources.NewGroupKind(extensions.GroupName, "Ingress")
 
 func init() {
-	cluster.Register("target","target","target cluster for endpoints")
+	cluster.Register("target", "target", "target cluster for endpoints")
 
 	controller.Configure("dnslb-endpoint").
 		FinalizerDomain(api.GroupName).
@@ -43,17 +44,12 @@ func init() {
 		MainResource(corev1.GroupName, "Service").
 		Watch(extensions.GroupName, "Ingress").
 		Reconciler(SourceReconciler).
-		Reconciler(reconcilers.SlaveReconcilerType("endpoint",SlaveResources,nil),"endpoints").
+		Reconciler(reconcilers.SlaveReconcilerType("endpoint", SlaveResources, nil, MasterResources), "endpoints").
 		Cluster(TARGET_CLUSTER).
 		WorkerPool("endpoints", 3, 0).
 		ReconcilerWatch("endpoints", api.GroupName, api.LoadBalancerEndpointResourceKind).
 		MustRegister("source")
 }
 
-func SlaveResources(c controller.Interface) []resources.Interface {
-	res, err:= c.GetMainCluster().Resources().Get(endpointGK)
-	if err!=nil {
-		panic(fmt.Errorf("resources type %s not found: %s", endpointGK, err))
-	}
-	return []resources.Interface{res}
-}
+var SlaveResources = reconcilers.ClusterResources(TARGET_CLUSTER, api.LoadBalancerEndpointGroupKind)
+var MasterResources = reconcilers.ClusterResources(controller.CLUSTER_MAIN, serviceGK, ingressGK)

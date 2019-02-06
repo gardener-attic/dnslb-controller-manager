@@ -2,20 +2,20 @@ package endpoint
 
 import (
 	"fmt"
-	dnsutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 	"time"
+
+	dnsutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources"
 
-	"github.com/gardener/lib/pkg/logger"
-	"github.com/gardener/lib/pkg/resources"
-	"github.com/gardener/lib/pkg/controllermanager/controller/reconcile"
+	"github.com/gardener/controller-manager-library/pkg/logger"
+	"github.com/gardener/controller-manager-library/pkg/resources"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (this *source_reconciler) newEndpoint(logger logger.LogContext, lb resources.Object, src sources.Source) *dnsutils.DNSLoadBalancerEndpointObject {
@@ -23,16 +23,16 @@ func (this *source_reconciler) newEndpoint(logger logger.LogContext, lb resource
 		"controller": this.FinalizerName(),
 		"source":     fmt.Sprintf("%s", src.Key()),
 	}
-	if lb.GetClusterName()!=src.GetClusterName() {
+	if lb.GetClusterName() != src.GetClusterName() {
 		labels["cluster"] = fmt.Sprintf("%s", src.GetCluster().GetId())
 	}
 
 	ip, cname := src.GetTargets(lb)
 	n := this.UpdateDeadline(logger, lb.Data().(*api.DNSLoadBalancer).Spec.EndpointValidityInterval, nil)
-	r,_:= this.ep_resource.Wrap(&api.DNSLoadBalancerEndpoint{
+	r, _ := this.ep_resource.Wrap(&api.DNSLoadBalancerEndpoint{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName:    src.GetName()+"-"+strings.ToLower(src.GroupKind().Kind)+"-",
-			Namespace:       lb.GetNamespace(),
+			GenerateName: src.GetName() + "-" + strings.ToLower(src.GroupKind().Kind) + "-",
+			Namespace:    lb.GetNamespace(),
 		},
 		Spec: api.DNSLoadBalancerEndpointSpec{
 			IPAddress:    ip,
@@ -47,10 +47,10 @@ func (this *source_reconciler) newEndpoint(logger logger.LogContext, lb resource
 	return dnsutils.DNSLoadBalancerEndpoint(r)
 }
 
-func (this *source_reconciler) updateEndpoint(logger logger.LogContext, oldep, newep resources.Object, lb resources.Object, src sources.Source) *reconcile.ModificationState {
-	n:=dnsutils.DNSLoadBalancerEndpoint(newep).DNSLoadBalancerEndpoint()
-	o:=dnsutils.DNSLoadBalancerEndpoint(oldep).DNSLoadBalancerEndpoint()
-	mod:=reconcile.NewModificationState(oldep)
+func (this *source_reconciler) updateEndpoint(logger logger.LogContext, oldep, newep resources.Object, lb resources.Object, src sources.Source) *resources.ModificationState {
+	n := dnsutils.DNSLoadBalancerEndpoint(newep).DNSLoadBalancerEndpoint()
+	o := dnsutils.DNSLoadBalancerEndpoint(oldep).DNSLoadBalancerEndpoint()
+	mod := resources.NewModificationState(oldep)
 	mod.AssureLabel("controller", newep.GetLabel("controller"))
 	mod.AssureLabel("source", newep.GetLabel("source"))
 	mod.AssureLabel("cluster", newep.GetLabel("cluster"))
@@ -60,15 +60,14 @@ func (this *source_reconciler) updateEndpoint(logger logger.LogContext, oldep, n
 	mod.AssureStringValue(&o.Spec.CName, n.Spec.CName)
 	mod.AssureStringValue(&o.Spec.LoadBalancer, n.Spec.LoadBalancer)
 
-	lbspec:=dnsutils.DNSLoadBalancer(lb).Spec()
-	t:=this.UpdateDeadline(logger, lbspec.EndpointValidityInterval, o.Status.ValidUntil)
+	lbspec := dnsutils.DNSLoadBalancer(lb).Spec()
+	t := this.UpdateDeadline(logger, lbspec.EndpointValidityInterval, o.Status.ValidUntil)
 	if t != o.Status.ValidUntil {
 		o.Status.ValidUntil = t
 		mod.Modify(true)
 	}
 	return mod
 }
-
 
 func (this *source_reconciler) UpdateDeadline(logger logger.LogContext, duration *metav1.Duration, deadline *metav1.Time) *metav1.Time {
 	if duration != nil && duration.Duration != 0 {
@@ -89,7 +88,7 @@ func (this *source_reconciler) UpdateDeadline(logger logger.LogContext, duration
 }
 
 func (this *source_reconciler) deleteEndpoint(logger logger.LogContext, src resources.Object, ep resources.Object) error {
-	if ep!=nil {
+	if ep != nil {
 		err := ep.Delete()
 		if err != nil {
 			if !errors.IsNotFound(err) {
@@ -101,4 +100,3 @@ func (this *source_reconciler) deleteEndpoint(logger logger.LogContext, src reso
 	}
 	return nil
 }
-

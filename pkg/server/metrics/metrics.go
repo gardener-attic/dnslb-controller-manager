@@ -21,8 +21,8 @@ import (
 	//"github.com/sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/gardener/lib/pkg/resources"
-	"github.com/gardener/lib/pkg/server"
+	"github.com/gardener/controller-manager-library/pkg/resources"
+	"github.com/gardener/controller-manager-library/pkg/server"
 
 )
 

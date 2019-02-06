@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
-	"github.com/gardener/lib/pkg/resources"
+	"github.com/gardener/controller-manager-library/pkg/resources"
 	api "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
