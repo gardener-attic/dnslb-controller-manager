@@ -43,6 +43,7 @@ type DNSLoadBalancerSpec struct {
 	HealthPath               string           `json:"healthPath"`
 	StatusCode               int              `json:"statusCode,omitempty"`
 	Type                     string           `json:"type,omitempty"`
+	TTL                      *int64           `json:"ttl,omitempty"`
 	Singleton                *bool            `json:"singleton,omitempty"`
 	EndpointValidityInterval *metav1.Duration `json:"endpointValidityInterval,omitempty"`
 }
@@ -53,8 +54,8 @@ const (
 )
 
 type DNSLoadBalancerStatus struct {
-	State   *string                  `json:"state,omitempty"`
-	Message *string                  `json:"message,omitempty"`
+	State   *string                 `json:"state,omitempty"`
+	Message *string                 `json:"message,omitempty"`
 	Active  []DNSLoadBalancerActive `json:"active,omitempty"`
 }
 
