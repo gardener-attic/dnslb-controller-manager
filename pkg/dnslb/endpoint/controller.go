@@ -23,6 +23,7 @@ import (
 
 	_ "github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources/ingress"
 	_ "github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources/service"
+	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -38,16 +39,20 @@ var ingressGK = resources.NewGroupKind(extensions.GroupName, "Ingress")
 func init() {
 	cluster.Register("target", "target", "target cluster for endpoints")
 
+	sourceUsages := utils.NewSharedUsages()
+
 	controller.Configure("dnslb-endpoint").
 		FinalizerDomain(api.GroupName).
 		Cluster(cluster.DEFAULT). // used as main cluster
 		MainResource(corev1.GroupName, "Service").
 		Watch(extensions.GroupName, "Ingress").
-		Reconciler(SourceReconciler).
-		Reconciler(reconcilers.SlaveReconcilerType("endpoint", SlaveResources, nil, MasterResources), "endpoints").
+		Reconciler(SourceReconcilerType(sourceUsages)).
 		Cluster(TARGET_CLUSTER).
 		WorkerPool("endpoints", 3, 0).
+		Reconciler(reconcilers.SlaveReconcilerType("endpoint", SlaveResources, nil, MasterResources), "endpoints").
 		ReconcilerWatch("endpoints", api.GroupName, api.LoadBalancerEndpointResourceKind).
+		Reconciler(AnnotationLoadBalancerReconcilerType(sourceUsages), "annotationLoadbalancers").
+		ReconcilerWatch("annotationLoadbalancers", api.GroupName, api.LoadBalancerResourceKind).
 		MustRegister("source")
 }
 

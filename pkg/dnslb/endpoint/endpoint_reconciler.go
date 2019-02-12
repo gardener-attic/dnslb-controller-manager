@@ -7,6 +7,7 @@ import (
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources"
+	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller"
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile"
@@ -22,11 +23,18 @@ import (
 
 type source_reconciler struct {
 	*reconcilers.SlaveAccess
-	lb_resource resources.Interface
-	ep_resource resources.Interface
+	lb_resource  resources.Interface
+	ep_resource  resources.Interface
+	sourceUsages *utils.SharedUsages
 }
 
-func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
+func SourceReconcilerType(usages *utils.SharedUsages) controller.ReconcilerType {
+	return func(c controller.Interface) (reconcile.Interface, error) {
+		return SourceReconciler(c, usages)
+	}
+}
+
+func SourceReconciler(c controller.Interface, usages *utils.SharedUsages) (reconcile.Interface, error) {
 	target := c.GetCluster(TARGET_CLUSTER)
 
 	lb, err := target.GetResource(resources.NewGroupKind(api.GroupName, api.LoadBalancerResourceKind))
@@ -39,16 +47,25 @@ func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
 	}
 
 	return &source_reconciler{
-		SlaveAccess: reconcilers.NewSlaveAccess(c, "endpoint", SlaveResources, MasterResources),
-		lb_resource: lb,
-		ep_resource: ep,
+		SlaveAccess:  reconcilers.NewSlaveAccess(c, "endpoint", SlaveResources, MasterResources),
+		lb_resource:  lb,
+		ep_resource:  ep,
+		sourceUsages: usages,
 	}, nil
+}
+
+func (this *source_reconciler) addSourceUsage(ref resources.ObjectName, sourceKey resources.ClusterObjectKey) {
+	lb, _ := this.lb_resource.GetCached(ref)
+	if lb != nil {
+		this.sourceUsages.Add(lb.ClusterKey(), sourceKey)
+	}
 }
 
 func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources.Object) reconcile.Status {
 	ep := this.AssertSingleSlave(logger, obj.ClusterKey(), this.LookupSlaves(obj.ClusterKey()), nil)
 	ref, src := this.IsValid(obj)
 	if ref != nil {
+		this.addSourceUsage(ref, obj.ClusterKey())
 		logger.Debugf("HANDLE reconcile %s for %s", obj.ObjectName(), ref)
 		lb, result := this.validate(logger, ref, src)
 		if !result.IsSucceeded() {
@@ -140,6 +157,7 @@ func (this *source_reconciler) validate(logger logger.LogContext, ref resources.
 }
 
 func (this *source_reconciler) Delete(logger logger.LogContext, obj resources.Object) reconcile.Status {
+	this.sourceUsages.RemoveValue(obj.ClusterKey())
 	ref, src := this.IsValid(obj)
 	failed := false
 	if src != nil {
