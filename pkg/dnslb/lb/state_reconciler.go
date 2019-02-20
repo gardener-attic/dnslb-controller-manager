@@ -32,14 +32,14 @@ func (this *stateReconciler) Reconcile(logger logger.LogContext, obj resources.O
 	logger.Infof("reconcile endpoint %q", obj.ClusterKey())
 
 	this.state.UpdateEndpoint(logger, obj)
-	ep:=lbutils.DNSLoadBalancerEndpoint(obj)
-	err:=ep.Validate()
-	mod:=false
-	if err!=nil {
-		mod,err=ep.UpdateState(api.STATE_INVALID,err.Error(), nil)
+	ep := lbutils.DNSLoadBalancerEndpoint(obj)
+	err := ep.Validate()
+	mod := false
+	if err != nil {
+		mod, err = ep.UpdateState(api.STATE_INVALID, err.Error(), nil)
 	} else {
 		if reconcile.StringEqual(ep.Status().State, api.STATE_INVALID) {
-			mod,err=ep.UpdateState(api.STATE_PENDING,"", nil)
+			mod, err = ep.UpdateState(api.STATE_PENDING, "", nil)
 		}
 	}
 	if mod {

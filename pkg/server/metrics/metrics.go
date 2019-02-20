@@ -20,10 +20,9 @@ import (
 
 	//"github.com/sirupsen/logrus"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/gardener/controller-manager-library/pkg/resources"
 	"github.com/gardener/controller-manager-library/pkg/server"
-
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func init() {
@@ -34,7 +33,6 @@ func init() {
 	prometheus.MustRegister(LoadBalancerDNS)
 	prometheus.MustRegister(DNSReconciler)
 	prometheus.MustRegister(DNSReconcileTime)
-
 
 	server.RegisterHandler("/metrics", promhttp.Handler())
 

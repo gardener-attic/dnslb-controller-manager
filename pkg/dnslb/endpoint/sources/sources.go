@@ -7,7 +7,7 @@ import (
 
 type Source interface {
 	resources.Object
-	GetTargets(lb resources.Object) (ip,cname string)
+	GetTargets(lb resources.Object) (ip, cname string)
 	Validate(lb resources.Object) (bool, error)
 }
 
@@ -23,5 +23,5 @@ func Register(src SourceType) {
 	if SourceTypes[src.GetGroupKind()] == nil {
 		SourceKinds = append(SourceKinds, src.GetGroupKind())
 	}
-	SourceTypes[src.GetGroupKind()]=src
+	SourceTypes[src.GetGroupKind()] = src
 }

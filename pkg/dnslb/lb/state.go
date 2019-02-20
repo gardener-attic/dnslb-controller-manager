@@ -1,10 +1,10 @@
 package lb
 
 import (
-	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller"
 	"github.com/gardener/controller-manager-library/pkg/logger"
 	"github.com/gardener/controller-manager-library/pkg/resources"
+	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -13,24 +13,24 @@ type Endpoints map[resources.ObjectName]resources.Object
 type Owners map[resources.ObjectName]resources.ObjectName
 
 type State struct {
-	controller    controller.Interface
-	endpoints     resources.SubObjectCache
+	controller controller.Interface
+	endpoints  resources.SubObjectCache
 }
 
 func LoadBalancer(o resources.Object) resources.ClusterObjectKeySet {
-	set:=resources.ClusterObjectKeySet{}
-	name:= o.Data().(*api.DNSLoadBalancerEndpoint).Spec.LoadBalancer
-	if name=="" {
+	set := resources.ClusterObjectKeySet{}
+	name := o.Data().(*api.DNSLoadBalancerEndpoint).Spec.LoadBalancer
+	if name == "" {
 		return set
 	}
-	key:=resources.NewClusterKey(o.GetCluster().GetId(), api.LoadBalancerGroupKind, o.GetNamespace(), name)
+	key := resources.NewClusterKey(o.GetCluster().GetId(), api.LoadBalancerGroupKind, o.GetNamespace(), name)
 	return set.Add(key)
 }
 
 func NewState(c controller.Interface) *State {
 	return &State{
-		controller:    c,
-		endpoints:     *resources.NewSubObjectCache(LoadBalancer),
+		controller: c,
+		endpoints:  *resources.NewSubObjectCache(LoadBalancer),
 	}
 }
 
@@ -47,7 +47,7 @@ func (this *State) Setup() {
 
 func (this *State) UpdateEndpoint(logger logger.LogContext, e resources.Object) {
 	if this.endpoints.RenewSubObject(e) {
-		key:=e.ClusterKey()
+		key := e.ClusterKey()
 		logger.Infof("update loadbalancer for %q: %v", key.ObjectName(), this.endpoints.GetOwners(key))
 	}
 }

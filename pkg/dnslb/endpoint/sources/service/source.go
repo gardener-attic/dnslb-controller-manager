@@ -2,8 +2,8 @@ package service
 
 import (
 	"fmt"
-	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources"
 	"github.com/gardener/controller-manager-library/pkg/resources"
+	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources"
 	api "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -19,29 +19,28 @@ type SourceType struct {
 var _ sources.Source = &Source{}
 
 func init() {
-	sources.Register(&SourceType{resources.NewGroupKind(api.GroupName,"Service")})
+	sources.Register(&SourceType{resources.NewGroupKind(api.GroupName, "Service")})
 }
 
-func (this *SourceType) GetGroupKind() schema.GroupKind{
+func (this *SourceType) GetGroupKind() schema.GroupKind {
 	return this.GroupKind
 }
 
 func (this *SourceType) Get(obj resources.Object) (sources.Source, error) {
-	if obj.GroupKind()!=this.GroupKind {
-		return nil,fmt.Errorf("invalid object type %q", obj.GroupKind())
+	if obj.GroupKind() != this.GroupKind {
+		return nil, fmt.Errorf("invalid object type %q", obj.GroupKind())
 	}
 	return &Source{resources.Service(obj)}, nil
 }
 
-
 func (this *Source) GetTargets(lb resources.Object) (ip, cname string) {
-	status:=this.Status()
+	status := this.Status()
 	for _, i := range status.LoadBalancer.Ingress {
 		if i.IP != "" {
-			ip=i.IP
+			ip = i.IP
 		}
 		if i.Hostname != "" {
-			cname=i.Hostname
+			cname = i.Hostname
 		}
 	}
 	return
@@ -61,7 +60,6 @@ func (this *Source) Validate(lb resources.Object) (bool, error) {
 	}
 	return true, nil
 }
-
 
 func HasLoadBalancer(svc *api.Service) (bool, error) {
 	if svc.Spec.Type != "LoadBalancer" {
