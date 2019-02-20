@@ -21,10 +21,10 @@ import (
 
 	"github.com/gardener/external-dns-management/pkg/dns/source"
 
+	"github.com/gardener/controller-manager-library/pkg/logger"
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 	"github.com/gardener/dnslb-controller-manager/pkg/server/metrics"
-	"github.com/gardener/controller-manager-library/pkg/logger"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -134,13 +134,13 @@ func (this *DNSDone) _updateLoadBalancerStatus(activeupd bool, state, message st
 	status := dnslb.Status()
 	if state == "" {
 		if this.ishealthy {
-			state=api.STATE_HEALTHY
+			state = api.STATE_HEALTHY
 		} else {
-			state=api.STATE_UNREACHABLE
+			state = api.STATE_UNREACHABLE
 		}
 	}
 	status.State = &state
-	if message!="" {
+	if message != "" {
 		status.Message = &message
 	} else {
 		status.Message = nil
@@ -183,11 +183,11 @@ func (this *DNSDone) _updateLoadBalancerStatus(activeupd bool, state, message st
 
 func (this *DNSDone) _updateEndpointStatus(ep *lbutils.DNSLoadBalancerEndpointObject, healthy, active bool) {
 
-	state:=api.STATE_INACTIVE
+	state := api.STATE_INACTIVE
 	if active {
 		state = api.STATE_ACTIVE
 	}
-	mod,err:=ep.Copy().UpdateState(state,"",&healthy)
+	mod, err := ep.Copy().UpdateState(state, "", &healthy)
 
 	if mod {
 		if err != nil {

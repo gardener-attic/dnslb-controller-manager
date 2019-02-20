@@ -21,8 +21,6 @@ import (
 	"github.com/gardener/controller-manager-library/pkg/resources"
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 
-	_ "github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources/ingress"
-	_ "github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources/service"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 
 	corev1 "k8s.io/api/core/v1"

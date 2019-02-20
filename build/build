@@ -42,7 +42,6 @@ echo "running build..."
 if [[ -z "$LOCAL_BUILD" ]]; then
   CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -a \
-    -v \
     -o ${BINARY_PATH}/rel/$EXE \
     -ldflags "-w -X $PKGPATH/pkg/version.Version=${VERSION}" \
     cmd/$EXE/*.go
@@ -51,7 +50,6 @@ if [[ -z "$LOCAL_BUILD" ]]; then
 # If the LOCAL_BUILD environment variable is set, we simply run `go build`.
 else
   go build \
-    -v \
     -o ${BINARY_PATH}/$EXE \
     -ldflags "-w -X $PKGPATH/pkg/version.Version=${VERSION}" \
     cmd/$EXE/*.go

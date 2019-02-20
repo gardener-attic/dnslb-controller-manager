@@ -28,7 +28,6 @@ type Target struct {
 	DNSEP     *lbutils.DNSLoadBalancerEndpointObject
 }
 
-
 func (t *Target) GetHostName() string {
 	if t.Name != "" {
 		return t.Name
@@ -80,9 +79,9 @@ type Watch struct {
 func NewWatch(logger logger.LogContext, lb *lbutils.DNSLoadBalancerObject, current *source.DNSCurrentState, nxdomain net.IP) (*Watch, error) {
 	singleton, err := IsSingleton(logger, lb)
 	if err != nil {
-return nil, err
+		return nil, err
 	}
-	spec:=lb.Spec()
+	spec := lb.Spec()
 	return &Watch{
 		LogContext: logger,
 
@@ -92,7 +91,7 @@ return nil, err
 		StatusCode: spec.StatusCode,
 		DNSLB:      lb.Copy(),
 
-		current: current,
+		current:  current,
 		nxdomain: nxdomain,
 	}, nil
 }
@@ -111,21 +110,20 @@ func (this *Watch) GetKey() string {
 	return this.DNSLB.ObjectName().String()
 }
 
-
-func (this *Watch) check(targets... *Target) bool {
-	set:=utils.StringSet{}
-	for _, t:=range targets {
+func (this *Watch) check(targets ...*Target) bool {
+	set := utils.StringSet{}
+	for _, t := range targets {
 		set.Add(t.GetHostName())
 	}
 	return set.Equals(this.current.Targets)
 }
 
-func (this *Watch) apply(targets... *Target) bool {
-	set:=utils.StringSet{}
-	for _, t:=range targets {
+func (this *Watch) apply(targets ...*Target) bool {
+	set := utils.StringSet{}
+	for _, t := range targets {
 		set.Add(t.GetHostName())
 	}
-	this.updated=set
+	this.updated = set
 	return !set.Equals(this.current.Targets)
 }
 
@@ -137,23 +135,21 @@ func (this *Watch) GetDNSState(dnsname string) *source.DNSState {
 	return this.current.Names[dnsname]
 }
 
-
-
 func (this *Watch) Handle() (utils.StringSet, source.DNSFeedback) {
 	this.Debugf("handle %s", this.dnsname)
 
-	ctx:=InactiveContext(this)
+	ctx := InactiveContext(this)
 	done := NewStatusUpdate(this)
 	healthyTargets := []*Target{}
 	if len(this.Targets) == 0 {
 		ctx.StateInfof(this.dnsname, "no endpoints configured for %s", this)
 		done.Error(true, fmt.Errorf("no endpoints configured"))
-		return nil,nil
+		return nil, nil
 	}
 
-	ips, err:=net.LookupIP(this.dnsname)
-	if err!=nil || bytes.Equal(ips[0],this.nxdomain){
-		ctx=ctx.StateInfof(this.dnsname, "%s not yet resolvable", this)
+	ips, err := net.LookupIP(this.dnsname)
+	if err != nil || bytes.Equal(ips[0], this.nxdomain) {
+		ctx = ctx.StateInfof(this.dnsname, "%s not yet resolvable", this)
 		done.SetHealthy(false)
 		metrics.ReportLB(this.GetKey(), this.dnsname, false)
 	} else {
@@ -213,8 +209,7 @@ func (this *Watch) Handle() (utils.StringSet, source.DNSFeedback) {
 		}
 	}
 
-
-	mod:= this.apply(healthyTargets...)
+	mod := this.apply(healthyTargets...)
 	if mod {
 		done.SetMessage(fmt.Sprintf("replacing targets for %s: %s -> %s", this.dnsname, this.current.Targets, this.updated))
 		this.Info(done.message)
@@ -248,7 +243,7 @@ func (this *Watch) IsHealthy(name string, dns ...string) bool {
 	if len(dns) > 0 {
 		req.Header.Add("Host", dns[0])
 	} else {
-		dns=[]string{name}
+		dns = []string{name}
 	}
 
 	this.Debugf("health check for %q(%q)%s", name, dns[0], this.HealthPath)
@@ -263,14 +258,13 @@ func (this *Watch) IsHealthy(name string, dns ...string) bool {
 	return resp.StatusCode == statusCode
 }
 
-
 func IsSingleton(logger logger.LogContext, lb *lbutils.DNSLoadBalancerObject) (bool, error) {
 	singleton := false
 	spec := lb.Spec()
 	if spec.Singleton != nil {
 		singleton = *spec.Singleton
 		if spec.Type != "" {
-			lb.Copy().UpdateState(api.STATE_ERROR,"invalid load balancer type: singleton and type specified")
+			lb.Copy().UpdateState(api.STATE_ERROR, "invalid load balancer type: singleton and type specified")
 			return false, fmt.Errorf("invalid load balancer type: singleton and type specified")
 		}
 	}
