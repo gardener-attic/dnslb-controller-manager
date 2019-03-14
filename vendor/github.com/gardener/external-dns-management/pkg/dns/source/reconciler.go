@@ -123,12 +123,12 @@ func (this *sourceReconciler) Reconcile(logger logger.LogContext, obj resources.
 	if len(info.Names) > 0 && requireFinalizer(obj, this.SlaveResoures()[0].GetCluster()) {
 		err := this.SetFinalizer(obj)
 		if err != nil {
-			return reconcile.Delay(logger, fmt.Errorf("cannot set finalizer: ", err))
+			return reconcile.Delay(logger, fmt.Errorf("cannot set finalizer: %s", err))
 		}
 	} else {
 		err := this.RemoveFinalizer(obj)
 		if err != nil {
-			return reconcile.Delay(logger, fmt.Errorf("cannot remove finalizer: ", err))
+			return reconcile.Delay(logger, fmt.Errorf("cannot remove finalizer: %s", err))
 		}
 	}
 outer:
@@ -329,6 +329,7 @@ func (this *sourceReconciler) createEntryFor(logger logger.LogContext, obj resou
 	} else {
 		entry.Namespace = this.namespace
 	}
+	entry.Spec.TTL = info.TTL
 
 	e, _ := this.SlaveResoures()[0].Wrap(entry)
 
