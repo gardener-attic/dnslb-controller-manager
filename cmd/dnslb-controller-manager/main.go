@@ -12,6 +12,6 @@ import (
 )
 
 func main() {
-	mappings.Configure().ForController("dnslb-loadbalancer").Map(cluster.DEFAULT, "target")
+	mappings.Configure().ForController("dnslb-loadbalancer").Map(cluster.DEFAULT, "target").Register()
 	controllermanager.Start("dnslb-controller-manager", "dns load balancer controller manager", "nothing")
 }
