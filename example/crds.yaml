@@ -1,0 +1,71 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: dnsloadbalancerendpoints.loadbalancer.gardener.cloud
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.loadbalancer
+    description: Loadbalancer
+    name: DNSLB
+    type: string
+  - JSONPath: .status.healthy
+    description: Health status of endpoint
+    name: HEALTHY
+    type: boolean
+  - JSONPath: .status.state
+    description: Assigned to Loadbalancer
+    name: STATUS
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  group: loadbalancer.gardener.cloud
+  names:
+    kind: DNSLoadBalancerEndpoint
+    listKind: DNSLoadBalancerEndpointList
+    plural: dnsloadbalancerendpoints
+    shortNames:
+    - dnslbep
+    singular: dnsloadbalancerendpoint
+  scope: Namespaced
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: dnsloadbalancers.loadbalancer.gardener.cloud
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.dnsname
+    description: DNS Name of loadbalancer
+    name: DNSNAME
+    type: string
+  - JSONPath: .spec.type
+    description: Type of loadbalancer
+    name: TYPE
+    type: string
+  - JSONPath: .status.state
+    description: loadbalancer state
+    name: STATUS
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  group: loadbalancer.gardener.cloud
+  names:
+    kind: DNSLoadBalancer
+    listKind: DNSLoadBalancerList
+    plural: dnsloadbalancers
+    shortNames:
+    - dnslb
+    singular: dnsloadbalancer
+  scope: Namespaced
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
