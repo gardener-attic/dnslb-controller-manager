@@ -223,30 +223,29 @@ func (this *Watch) Handle() (utils.StringSet, source.DNSFeedback) {
 	return this.updated, done
 }
 
-func (this *Watch) IsHealthy(name string, dns ...string) bool {
-	var (
-		tr = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		client   = &http.Client{Transport: tr}
-		hostname = fmt.Sprintf("https://%s%s", name, this.HealthPath)
-	)
+func (this *Watch) IsHealthy(hostname string, dns ...string) bool {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	url := fmt.Sprintf("https://%s%s", hostname, this.HealthPath)
+	
 	statusCode := this.StatusCode
 	if statusCode == 0 {
 		statusCode = 200
 	}
 
-	req, err := http.NewRequest("GET", hostname, nil)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return false
 	}
 	if len(dns) > 0 {
-		req.Header.Add("Host", dns[0])
+		req.Host = dns[0]
 	} else {
-		dns = []string{name}
+		dns = []string{hostname}
 	}
 
-	this.Debugf("health check for %q(%q)%s", name, dns[0], this.HealthPath)
+	this.Debugf("health check for %q(%q)%s", hostname, dns[0], this.HealthPath)
 	resp, err := client.Do(req)
 	if err != nil {
 		this.Debugf("request failed")
