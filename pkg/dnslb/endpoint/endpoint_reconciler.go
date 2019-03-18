@@ -28,13 +28,7 @@ type source_reconciler struct {
 	sourceUsages *utils.SharedUsages
 }
 
-func SourceReconcilerType(usages *utils.SharedUsages) controller.ReconcilerType {
-	return func(c controller.Interface) (reconcile.Interface, error) {
-		return SourceReconciler(c, usages)
-	}
-}
-
-func SourceReconciler(c controller.Interface, usages *utils.SharedUsages) (reconcile.Interface, error) {
+func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
 	target := c.GetCluster(TARGET_CLUSTER)
 
 	lb, err := target.GetResource(resources.NewGroupKind(api.GroupName, api.LoadBalancerResourceKind))
@@ -45,6 +39,10 @@ func SourceReconciler(c controller.Interface, usages *utils.SharedUsages) (recon
 	if err != nil {
 		return nil, err
 	}
+
+	usages := c.GetOrCreateSharedValue(KEY_USAGES, func() interface{} {
+		return utils.NewSharedUsages
+	}).(*utils.SharedUsages)
 
 	return &source_reconciler{
 		SlaveAccess:  reconcilers.NewSlaveAccess(c, "endpoint", SlaveResources, MasterResources),
