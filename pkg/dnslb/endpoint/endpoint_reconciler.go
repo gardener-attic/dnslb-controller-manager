@@ -41,7 +41,7 @@ func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
 	}
 
 	usages := c.GetOrCreateSharedValue(KEY_USAGES, func() interface{} {
-		return utils.NewSharedUsages
+		return utils.NewSharedUsages()
 	}).(*utils.SharedUsages)
 
 	return &source_reconciler{
