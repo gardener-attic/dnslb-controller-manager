@@ -16,13 +16,11 @@ type annotationlb_reconciler struct {
 	sourceUsages *utils.SharedUsages
 }
 
-func AnnotationLoadBalancerReconcilerType(usages *utils.SharedUsages) controller.ReconcilerType {
-	return func(c controller.Interface) (reconcile.Interface, error) {
-		return AnnotationLoadBalancerReconciler(c, usages)
-	}
-}
+func AnnotationLoadBalancerReconciler(c controller.Interface) (reconcile.Interface, error) {
+	usages := c.GetOrCreateSharedValue(KEY_USAGES, func() interface{} {
+		return utils.NewSharedUsages()
+	}).(*utils.SharedUsages)
 
-func AnnotationLoadBalancerReconciler(c controller.Interface, usages *utils.SharedUsages) (reconcile.Interface, error) {
 	return &annotationlb_reconciler{
 		Interface:    c,
 		sourceUsages: usages,
@@ -37,3 +35,13 @@ func (this *annotationlb_reconciler) Reconcile(logger logger.LogContext, obj res
 	}
 	return reconcile.Succeeded(logger)
 }
+
+func (this *annotationlb_reconciler) Deleted(logger logger.LogContext, key resources.ClusterObjectKey) reconcile.Status {
+	set := this.sourceUsages.Get(key)
+	logger.Infof("AnnotationLoadBalancerReconciler: load balancer %s deleted for annotated source objects %v", key.ObjectName(), set)
+	for sourceKey := range set {
+		this.Interface.EnqueueKey(sourceKey)
+	}
+	return reconcile.Succeeded(logger)
+}
+

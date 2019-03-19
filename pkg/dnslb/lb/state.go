@@ -59,3 +59,7 @@ func (this *State) RemoveEndpoint(logger logger.LogContext, key resources.Cluste
 func (this *State) GetEndpointsFor(key resources.ClusterObjectKey) []resources.Object {
 	return this.endpoints.GetByKey(key)
 }
+
+func (this *State) RemoveLoadBalancer(key resources.ClusterObjectKey) {
+	this.endpoints.DeleteOwner(key)
+}
