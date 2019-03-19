@@ -44,4 +44,3 @@ func (this *annotationlb_reconciler) Deleted(logger logger.LogContext, key resou
 	}
 	return reconcile.Succeeded(logger)
 }
-

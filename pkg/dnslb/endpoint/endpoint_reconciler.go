@@ -23,6 +23,7 @@ import (
 
 type source_reconciler struct {
 	*reconcilers.SlaveAccess
+	usages       *reconcilers.UsageAccess
 	lb_resource  resources.Interface
 	ep_resource  resources.Interface
 	sourceUsages *utils.SharedUsages
@@ -40,30 +41,24 @@ func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
 		return nil, err
 	}
 
-	usages := c.GetOrCreateSharedValue(KEY_USAGES, func() interface{} {
-		return utils.NewSharedUsages()
-	}).(*utils.SharedUsages)
-
 	return &source_reconciler{
-		SlaveAccess:  reconcilers.NewSlaveAccess(c, "endpoint", SlaveResources, MasterResources),
-		lb_resource:  lb,
-		ep_resource:  ep,
-		sourceUsages: usages,
+		SlaveAccess: reconcilers.NewSlaveAccess(c, "endpoint", SlaveResources, MasterResources),
+		usages:      reconcilers.NewUsageAccess(c, LBUSAGES, MasterResources, LBFunc(c)),
+		lb_resource: lb,
+		ep_resource: ep,
 	}, nil
 }
 
-func (this *source_reconciler) addSourceUsage(ref resources.ObjectName, sourceKey resources.ClusterObjectKey) {
-	lb, _ := this.lb_resource.GetCached(ref)
-	if lb != nil {
-		this.sourceUsages.Add(lb.ClusterKey(), sourceKey)
-	}
+func (this *source_reconciler) Setup() {
+	this.SlaveAccess.Setup()
+	this.usages.Setup()
 }
 
 func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources.Object) reconcile.Status {
 	ep := this.AssertSingleSlave(logger, obj.ClusterKey(), this.LookupSlaves(obj.ClusterKey()), nil)
+	this.usages.RenewOwner(obj)
 	ref, src := this.IsValid(obj)
 	if ref != nil {
-		this.addSourceUsage(ref, obj.ClusterKey())
 		logger.Debugf("HANDLE reconcile %s for %s", obj.ObjectName(), ref)
 		lb, result := this.validate(logger, ref, src)
 		if !result.IsSucceeded() {
@@ -110,28 +105,37 @@ func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources
 	return reconcile.Succeeded(logger)
 }
 
-func (this *source_reconciler) IsValid(obj resources.Object) (resources.ObjectName, sources.Source) {
-	t := sources.SourceTypes[obj.GroupKind()]
-	if t != nil {
-		src, _ := t.Get(obj)
-		for n, v := range obj.GetAnnotations() {
-			if n == AnnotationLoadbalancer {
-				parts := strings.Split(v, "/")
-				switch len(parts) {
-				case 1:
-					return resources.NewObjectName(obj.GetNamespace(), parts[0]), src
-				case 2:
-					return resources.NewObjectName(parts[0], parts[1]), src
-				default:
-					if this.HasFinalizer(obj) {
-						return nil, src
-					}
-					return nil, nil
-				}
+func LBForSource(obj resources.Object) (resources.ObjectName, bool) {
+	for n, v := range obj.GetAnnotations() {
+		if n == AnnotationLoadbalancer {
+			parts := strings.Split(v, "/")
+			switch len(parts) {
+			case 1:
+				return resources.NewObjectName(obj.GetNamespace(), parts[0]), true
+			case 2:
+				return resources.NewObjectName(parts[0], parts[1]), true
+			default:
+				return nil, true
 			}
 		}
 	}
-	return nil, nil
+	return nil, false
+}
+
+func (this *source_reconciler) IsValid(obj resources.Object) (resources.ObjectName, sources.Source) {
+	t := sources.SourceTypes[obj.GroupKind()]
+	if t == nil {
+		return nil, nil
+	}
+	src, _ := t.Get(obj)
+	n, found := LBForSource(obj)
+	if n == nil {
+		if found && this.HasFinalizer(obj) {
+			return nil, src
+		}
+		return nil, nil
+	}
+	return n, src
 }
 
 func (this *source_reconciler) validate(logger logger.LogContext, ref resources.ObjectName, src sources.Source) (*dnsutils.DNSLoadBalancerObject, reconcile.Status) {
@@ -172,5 +176,11 @@ func (this *source_reconciler) Delete(logger logger.LogContext, obj resources.Ob
 		}
 		return reconcile.DelayOnError(logger, this.RemoveFinalizer(obj))
 	}
+	this.usages.DeleteOwner(obj.ClusterKey())
+	return reconcile.Succeeded(logger)
+}
+
+func (this *source_reconciler) Deleted(logger logger.LogContext, key resources.ClusterObjectKey) reconcile.Status {
+	this.usages.DeleteOwner(key)
 	return reconcile.Succeeded(logger)
 }

@@ -229,7 +229,7 @@ func (this *Watch) IsHealthy(hostname string, dns ...string) bool {
 	}
 	client := &http.Client{Transport: tr}
 	url := fmt.Sprintf("https://%s%s", hostname, this.HealthPath)
-	
+
 	statusCode := this.StatusCode
 	if statusCode == 0 {
 		statusCode = 200
