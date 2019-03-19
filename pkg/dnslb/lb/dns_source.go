@@ -88,6 +88,7 @@ func (this *DNSLBSource) Deleted(logger logger.LogContext, key resources.Cluster
 		logger.Infof("reschedule endpoint %q", o.ObjectName())
 		this.controller.Enqueue(o)
 	}
+	this.state.RemoveLoadBalancer(key)
 	this.DefaultDNSSource.Deleted(logger, key)
 }
 

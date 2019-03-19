@@ -65,7 +65,7 @@ func (this *DNSLoadBalancerEndpointObject) Validate() error {
 	if errors.IsNotFound(err) || (err == nil && o.IsDeleting()) {
 		return fmt.Errorf("loadbalancer %q not found", lbref.ObjectName())
 	}
-	return nil
+	return err
 }
 
 func (this *DNSLoadBalancerEndpointObject) UpdateState(state, msg string, healthy *bool) (bool, error) {

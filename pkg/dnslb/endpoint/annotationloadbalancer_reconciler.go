@@ -35,3 +35,13 @@ func (this *annotationlb_reconciler) Reconcile(logger logger.LogContext, obj res
 	}
 	return reconcile.Succeeded(logger)
 }
+
+func (this *annotationlb_reconciler) Deleted(logger logger.LogContext, key resources.ClusterObjectKey) reconcile.Status {
+	set := this.sourceUsages.Get(key)
+	logger.Infof("AnnotationLoadBalancerReconciler: load balancer %s deleted for annotated source objects %v", key.ObjectName(), set)
+	for sourceKey := range set {
+		this.Interface.EnqueueKey(sourceKey)
+	}
+	return reconcile.Succeeded(logger)
+}
+
