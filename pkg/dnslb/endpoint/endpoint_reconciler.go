@@ -143,7 +143,7 @@ func (this *source_reconciler) validate(logger logger.LogContext, ref resources.
 	if lb == nil || err != nil {
 		if errors.IsNotFound(err) {
 			src.Eventf(corev1.EventTypeNormal, AnnotationLoadbalancer, fmt.Sprintf("dns loadbalancer '%s' does not exist", ref))
-			return nil, reconcile.Failed(logger, fmt.Errorf("dns loadbalancer '%s' does not exist", ref)).RescheduleAfter(10 * time.Minute)
+			return nil, reconcile.Failed(logger, fmt.Errorf("dns loadbalancer '%s' does not exist", ref))
 		} else {
 			src.Eventf(corev1.EventTypeNormal, AnnotationLoadbalancer, fmt.Sprintf("cannot get dns loadbalancer '%s': %s", ref, err))
 			return nil, reconcile.Delay(logger, fmt.Errorf("cannot get dns loadbalancer '%s': %s", ref, err))
