@@ -17,7 +17,6 @@ package endpoint
 import (
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/cluster"
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller"
-	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile"
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile/reconcilers"
 	"github.com/gardener/controller-manager-library/pkg/resources"
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
@@ -46,10 +45,10 @@ func init() {
 		MainResource(corev1.GroupName, "Service").
 		Watch(extensions.GroupName, "Ingress").
 		Reconciler(SourceReconciler).
-		Reconciler(UsageReconcilerType(LBUSAGES, MasterResources), "usages").
+		Reconciler(reconcilers.UsageReconcilerTypeBySpec(nil, lbUsageAccessSpec), "usages").
 		Cluster(TARGET_CLUSTER).
 		WorkerPool("endpoints", 3, 0).
-		Reconciler(reconcilers.SlaveReconcilerType("endpoint", SlaveResources, nil, MasterResources), "endpoints").
+		Reconciler(reconcilers.SlaveReconcilerTypeBySpec(nil, lbSlaveAccessSpec), "endpoints").
 		ReconcilerWatch("endpoints", api.GroupName, api.LoadBalancerEndpointResourceKind).
 		ReconcilerWatch("usages", api.GroupName, api.LoadBalancerResourceKind).
 		MustRegister("source")
@@ -58,11 +57,8 @@ func init() {
 var SlaveResources = reconcilers.ClusterResources(TARGET_CLUSTER, api.LoadBalancerEndpointGroupKind)
 var MasterResources = reconcilers.ClusterResources(controller.CLUSTER_MAIN, serviceGK, ingressGK)
 
-func UsageReconcilerType(name string, masterResources reconcilers.Resources) controller.ReconcilerType {
-	return func(c controller.Interface) (reconcile.Interface, error) {
-		return reconcilers.NewUsageReconciler(c, name, nil, masterResources, LBFunc(c))
-	}
-}
+var lbSlaveAccessSpec = reconcilers.SlaveAccessSpec{Name: "endpoint", Slaves: SlaveResources, Masters: MasterResources}
+var lbUsageAccessSpec = reconcilers.UsageAccessSpec{Name: LBUSAGES, ExtractorFactory: LBFunc, MasterResources: MasterResources}
 
 func LBFunc(c controller.Interface) resources.UsedExtractor {
 	clusterid := c.GetCluster(TARGET_CLUSTER).GetId()

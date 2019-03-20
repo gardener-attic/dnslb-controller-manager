@@ -42,8 +42,8 @@ func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
 	}
 
 	return &source_reconciler{
-		SlaveAccess: reconcilers.NewSlaveAccess(c, "endpoint", SlaveResources, MasterResources),
-		usages:      reconcilers.NewUsageAccess(c, LBUSAGES, MasterResources, LBFunc(c)),
+		SlaveAccess: reconcilers.NewSlaveAccessBySpec(c, lbSlaveAccessSpec),
+		usages:      reconcilers.NewUsageAccessBySpec(c, lbUsageAccessSpec),
 		lb_resource: lb,
 		ep_resource: ep,
 	}, nil
