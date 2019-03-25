@@ -7,8 +7,7 @@ import (
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources"
-	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
-
+	
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller"
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile"
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile/reconcilers"
@@ -26,7 +25,6 @@ type source_reconciler struct {
 	usages       *reconcilers.UsageAccess
 	lb_resource  resources.Interface
 	ep_resource  resources.Interface
-	sourceUsages *utils.SharedUsages
 }
 
 func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
@@ -159,7 +157,6 @@ func (this *source_reconciler) validate(logger logger.LogContext, ref resources.
 }
 
 func (this *source_reconciler) Delete(logger logger.LogContext, obj resources.Object) reconcile.Status {
-	this.sourceUsages.RemoveValue(obj.ClusterKey())
 	ref, src := this.IsValid(obj)
 	failed := false
 	if src != nil {
