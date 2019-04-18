@@ -60,6 +60,7 @@ type Interface interface {
 	GetOption(name string) (*config.ArbitraryOption, error)
 	GetStringOption(name string) (string, error)
 	GetIntOption(name string) (int, error)
+	GetDurationOption(name string) (time.Duration, error)
 	GetBoolOption(name string) (bool, error)
 	GetStringArrayOption(name string) ([]string, error)
 
@@ -69,7 +70,8 @@ type Interface interface {
 	HasFinalizer(obj resources.Object) bool
 	SetFinalizer(obj resources.Object) error
 	RemoveFinalizer(obj resources.Object) error
-	FinalizerName() string
+	FinalizerHandler() Finalizer
+	SetFinalizerHandler(Finalizer)
 
 	EnqueueKey(key resources.ClusterObjectKey) error
 	Enqueue(object resources.Object) error

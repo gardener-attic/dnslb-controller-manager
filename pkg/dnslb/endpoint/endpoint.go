@@ -20,7 +20,7 @@ import (
 
 func (this *source_reconciler) newEndpoint(logger logger.LogContext, lb resources.Object, src sources.Source) *dnsutils.DNSLoadBalancerEndpointObject {
 	labels := map[string]string{
-		"controller": this.FinalizerName(),
+		"controller": this.FinalizerHandler().FinalizerName(lb),
 		"source":     fmt.Sprintf("%s", src.Key()),
 	}
 	if lb.GetClusterName() != src.GetClusterName() {

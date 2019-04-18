@@ -15,38 +15,34 @@
 package crds
 
 import (
-	"github.com/gardener/controller-manager-library/pkg/clientsets"
-	"github.com/gardener/controller-manager-library/pkg/clientsets/apiextensions"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"github.com/gardener/controller-manager-library/pkg/resources/apiextensions"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 )
 
-func RegisterCrds(clientsets clientsets.Interface) error {
+var DNSLBCRD = apiextensions.CreateCRDObject(api.GroupName, api.Version, api.LoadBalancerResourceKind, api.LoadBalancerResourcePlural, "dnlb", true,
+	v1beta1.CustomResourceColumnDefinition{
+		Name:        "DNSNAME",
+		Description: "DNS Name of loadbalancer",
+		Type:        "string",
+		JSONPath:    ".spec.dnsname",
+	},
+	v1beta1.CustomResourceColumnDefinition{
+		Name:        "TYPE",
+		Description: "Type of loadbalancer",
+		Type:        "string",
+		JSONPath:    ".spec.type",
+	},
+	v1beta1.CustomResourceColumnDefinition{
+		Name:        "STATUS",
+		Description: "loadbalancer state",
+		Type:        "string",
+		JSONPath:    ".status.state",
+	})
 
-	err := apiextensions.CreateCRD(clientsets, api.GroupName, api.Version, api.LoadBalancerResourceKind, api.LoadBalancerResourcePlural, "dnslb", true,
-		v1beta1.CustomResourceColumnDefinition{
-			Name:        "DNSNAME",
-			Description: "DNS Name of loadbalancer",
-			Type:        "string",
-			JSONPath:    ".spec.dnsname",
-		},
-		v1beta1.CustomResourceColumnDefinition{
-			Name:        "TYPE",
-			Description: "Type of loadbalancer",
-			Type:        "string",
-			JSONPath:    ".spec.type",
-		},
-		v1beta1.CustomResourceColumnDefinition{
-			Name:        "STATUS",
-			Description: "loadbalancer state",
-			Type:        "string",
-			JSONPath:    ".status.state",
-		})
-	if err != nil {
-		return err
-	}
-	err = apiextensions.CreateCRD(clientsets, api.GroupName, api.Version, api.LoadBalancerEndpointResourceKind, api.LoadBalancerEndpointResourcePlural, "dnslbep", true,
+
+var DNSLBEPCRD = apiextensions.CreateCRDObject(api.GroupName, api.Version, api.LoadBalancerEndpointResourceKind, api.LoadBalancerEndpointResourcePlural, "dnslbep", true,
 		v1beta1.CustomResourceColumnDefinition{
 			Name:        "DNSLB",
 			Description: "Loadbalancer",
@@ -66,8 +62,4 @@ func RegisterCrds(clientsets clientsets.Interface) error {
 			JSONPath:    ".status.state",
 		},
 	)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+

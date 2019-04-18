@@ -1,7 +1,9 @@
 package lb
 
 import (
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/cluster"
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
+	"github.com/gardener/dnslb-controller-manager/pkg/crds"
 	"github.com/gardener/external-dns-management/pkg/dns/source"
 )
 
@@ -13,5 +15,7 @@ func init() {
 		FinalizerDomain(api.GroupName).
 		StringOption(OPT_BOGUS_NXDOMAIN, "ip address returned by DNS for unknown domain").
 		Reconciler(StateReconciler, "state").ReconcilerWatch("state", api.GroupName, api.LoadBalancerEndpointResourceKind).
+		Cluster(cluster.DEFAULT).
+		CustomResourceDefinitions(crds.DNSLBCRD, crds.DNSLBEPCRD).
 		MustRegister("loadbalancer")
 }

@@ -16,35 +16,34 @@
 
 package utils
 
-import "strings"
+import (
+	"github.com/gardener/controller-manager-library/pkg/resources"
+	"sync"
+)
 
-func IsEmptyString(s *string) bool {
-	return s == nil || *s == ""
-}
+type Elements []resources.Object
+type Executor func(resources.Object)
 
-func StringValue(s *string) string {
-	if s == nil {
-		return ""
+func ProcessElements(elems Elements, exec Executor, processors int) {
+	ch := make(chan resources.Object, processors)
+	wg := sync.WaitGroup{}
+
+	for i := 1; i <= processors; i++ {
+		wg.Add(1)
+		go func() {
+			for {
+				e, ok := <-ch
+				if !ok {
+					break
+				}
+				exec(e)
+			}
+			wg.Done()
+		}()
 	}
-	return *s
-}
-func Int64Value(v *int64, def int64) int64 {
-	if v == nil {
-		return def
+	for _, e := range elems {
+		ch <- e
 	}
-	return *v
-}
-
-func StringEqual(a, b *string) bool {
-	return a == b || (a != nil && b != nil && *a == *b)
-}
-func IntEqual(a, b *int) bool {
-	return a == b || (a != nil && b != nil && *a == *b)
-}
-func Int64Equal(a, b *int64) bool {
-	return a == b || (a != nil && b != nil && *a == *b)
-}
-
-func Strings(s ...string) string {
-	return "[" + strings.Join(s, ", ") + "]"
+	close(ch)
+	wg.Wait()
 }

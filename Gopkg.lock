@@ -46,23 +46,9 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:cd6aa19b0cfd48c8f0b50a55f3c44fc899a841467cda8fcca483c702276b19e1"
+  digest = "1:7da588f352e9b765e42ac04892be60218d88eccec449b3dd124237a835a89b40"
   name = "github.com/gardener/controller-manager-library"
   packages = [
-    "pkg/apis/gardenextensions",
-    "pkg/apis/gardenextensions/v1alpha1",
-    "pkg/client/gardenextensions/clientset/versioned",
-    "pkg/client/gardenextensions/clientset/versioned/scheme",
-    "pkg/client/gardenextensions/clientset/versioned/typed/gardenextensions/v1alpha1",
-    "pkg/client/gardenextensions/informers/externalversions",
-    "pkg/client/gardenextensions/informers/externalversions/gardenextensions",
-    "pkg/client/gardenextensions/informers/externalversions/gardenextensions/v1alpha1",
-    "pkg/client/gardenextensions/informers/externalversions/internalinterfaces",
-    "pkg/client/gardenextensions/listers/gardenextensions/v1alpha1",
-    "pkg/clientsets",
-    "pkg/clientsets/apiextensions",
-    "pkg/clientsets/gardenextensions",
-    "pkg/clientsets/kubernetes",
     "pkg/controllermanager",
     "pkg/controllermanager/cluster",
     "pkg/controllermanager/config",
@@ -74,22 +60,21 @@
     "pkg/ctxutil",
     "pkg/fieldpath",
     "pkg/informerfactories",
-    "pkg/informerfactories/gardenextensions",
-    "pkg/informerfactories/kubernetes",
     "pkg/kutil",
     "pkg/logger",
     "pkg/resources",
     "pkg/resources/access",
+    "pkg/resources/apiextensions",
     "pkg/server",
     "pkg/server/healthz",
     "pkg/utils",
   ]
   pruneopts = "NUT"
-  revision = "16ea0c20f4228fa53e6af84f05b83f52449c8e6a"
+  revision = "83f4bac4b55f6c971d6241ee365517f604000f77"
 
 [[projects]]
   branch = "master"
-  digest = "1:44d6a83438f983fea6a19d851c6002f535237346650802f7db301da9f7346040"
+  digest = "1:f27945a30f74cc3b0c1796ba01f330bca67a7e4235e7aedcda8401d032bcb0f2"
   name = "github.com/gardener/external-dns-management"
   packages = [
     "pkg/apis/dns",
@@ -100,7 +85,7 @@
     "pkg/dns/utils",
   ]
   pruneopts = "NUT"
-  revision = "04007ca727fc4381a762f2663b609af9535a6d49"
+  revision = "3ed7ae0de37ed9c99aa03679585956742f8f1241"
 
 [[projects]]
   digest = "1:81466b4218bf6adddac2572a30ac733a9255919bc2f470b4827a317bd4ee1756"
@@ -619,14 +604,11 @@
   version = "kubernetes-1.12.0"
 
 [[projects]]
-  digest = "1:51f330b7a61ac0e8b6e082490586ff2b18008eb514a67eccbe5ec78ffd32ee25"
+  digest = "1:b8a1dcc5f4e559b7af185ba12dd341cb8c175ea3d36227a02699b251ae5fde05"
   name = "k8s.io/apiextensions-apiserver"
   packages = [
     "pkg/apis/apiextensions",
     "pkg/apis/apiextensions/v1beta1",
-    "pkg/client/clientset/clientset",
-    "pkg/client/clientset/clientset/scheme",
-    "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
   ]
   pruneopts = "NUT"
   revision = "1748dfb29e8a4432b78514bc88a1b07937a9805a"
@@ -684,115 +666,13 @@
   version = "kubernetes-1.12.0"
 
 [[projects]]
-  digest = "1:b319b32c550d258b6fa1cb53de472a83433b9b4178686f43df46a8c94e7fda28"
+  digest = "1:68895a7717175b4905daa8ea2717a8aec1e3fab7b192b2ae78993d5fc8f06145"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
     "discovery/fake",
-    "informers",
-    "informers/admissionregistration",
-    "informers/admissionregistration/v1alpha1",
-    "informers/admissionregistration/v1beta1",
-    "informers/apps",
-    "informers/apps/v1",
-    "informers/apps/v1beta1",
-    "informers/apps/v1beta2",
-    "informers/autoscaling",
-    "informers/autoscaling/v1",
-    "informers/autoscaling/v2beta1",
-    "informers/autoscaling/v2beta2",
-    "informers/batch",
-    "informers/batch/v1",
-    "informers/batch/v1beta1",
-    "informers/batch/v2alpha1",
-    "informers/certificates",
-    "informers/certificates/v1beta1",
-    "informers/coordination",
-    "informers/coordination/v1beta1",
-    "informers/core",
-    "informers/core/v1",
-    "informers/events",
-    "informers/events/v1beta1",
-    "informers/extensions",
-    "informers/extensions/v1beta1",
-    "informers/internalinterfaces",
-    "informers/networking",
-    "informers/networking/v1",
-    "informers/policy",
-    "informers/policy/v1beta1",
-    "informers/rbac",
-    "informers/rbac/v1",
-    "informers/rbac/v1alpha1",
-    "informers/rbac/v1beta1",
-    "informers/scheduling",
-    "informers/scheduling/v1alpha1",
-    "informers/scheduling/v1beta1",
-    "informers/settings",
-    "informers/settings/v1alpha1",
-    "informers/storage",
-    "informers/storage/v1",
-    "informers/storage/v1alpha1",
-    "informers/storage/v1beta1",
-    "kubernetes",
     "kubernetes/scheme",
-    "kubernetes/typed/admissionregistration/v1alpha1",
-    "kubernetes/typed/admissionregistration/v1beta1",
-    "kubernetes/typed/apps/v1",
-    "kubernetes/typed/apps/v1beta1",
-    "kubernetes/typed/apps/v1beta2",
-    "kubernetes/typed/authentication/v1",
-    "kubernetes/typed/authentication/v1beta1",
-    "kubernetes/typed/authorization/v1",
-    "kubernetes/typed/authorization/v1beta1",
-    "kubernetes/typed/autoscaling/v1",
-    "kubernetes/typed/autoscaling/v2beta1",
-    "kubernetes/typed/autoscaling/v2beta2",
-    "kubernetes/typed/batch/v1",
-    "kubernetes/typed/batch/v1beta1",
-    "kubernetes/typed/batch/v2alpha1",
-    "kubernetes/typed/certificates/v1beta1",
-    "kubernetes/typed/coordination/v1beta1",
     "kubernetes/typed/core/v1",
-    "kubernetes/typed/events/v1beta1",
-    "kubernetes/typed/extensions/v1beta1",
-    "kubernetes/typed/networking/v1",
-    "kubernetes/typed/policy/v1beta1",
-    "kubernetes/typed/rbac/v1",
-    "kubernetes/typed/rbac/v1alpha1",
-    "kubernetes/typed/rbac/v1beta1",
-    "kubernetes/typed/scheduling/v1alpha1",
-    "kubernetes/typed/scheduling/v1beta1",
-    "kubernetes/typed/settings/v1alpha1",
-    "kubernetes/typed/storage/v1",
-    "kubernetes/typed/storage/v1alpha1",
-    "kubernetes/typed/storage/v1beta1",
-    "listers/admissionregistration/v1alpha1",
-    "listers/admissionregistration/v1beta1",
-    "listers/apps/v1",
-    "listers/apps/v1beta1",
-    "listers/apps/v1beta2",
-    "listers/autoscaling/v1",
-    "listers/autoscaling/v2beta1",
-    "listers/autoscaling/v2beta2",
-    "listers/batch/v1",
-    "listers/batch/v1beta1",
-    "listers/batch/v2alpha1",
-    "listers/certificates/v1beta1",
-    "listers/coordination/v1beta1",
-    "listers/core/v1",
-    "listers/events/v1beta1",
-    "listers/extensions/v1beta1",
-    "listers/networking/v1",
-    "listers/policy/v1beta1",
-    "listers/rbac/v1",
-    "listers/rbac/v1alpha1",
-    "listers/rbac/v1beta1",
-    "listers/scheduling/v1alpha1",
-    "listers/scheduling/v1beta1",
-    "listers/settings/v1alpha1",
-    "listers/storage/v1",
-    "listers/storage/v1alpha1",
-    "listers/storage/v1beta1",
     "pkg/apis/clientauthentication",
     "pkg/apis/clientauthentication/v1alpha1",
     "pkg/apis/clientauthentication/v1beta1",
@@ -905,8 +785,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/gardener/controller-manager-library/pkg/clientsets",
-    "github.com/gardener/controller-manager-library/pkg/clientsets/apiextensions",
     "github.com/gardener/controller-manager-library/pkg/controllermanager",
     "github.com/gardener/controller-manager-library/pkg/controllermanager/cluster",
     "github.com/gardener/controller-manager-library/pkg/controllermanager/controller",
@@ -915,6 +793,7 @@
     "github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile/reconcilers",
     "github.com/gardener/controller-manager-library/pkg/logger",
     "github.com/gardener/controller-manager-library/pkg/resources",
+    "github.com/gardener/controller-manager-library/pkg/resources/apiextensions",
     "github.com/gardener/controller-manager-library/pkg/server",
     "github.com/gardener/controller-manager-library/pkg/utils",
     "github.com/gardener/external-dns-management/pkg/dns/source",

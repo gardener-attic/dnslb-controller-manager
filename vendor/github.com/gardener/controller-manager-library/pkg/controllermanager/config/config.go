@@ -26,15 +26,18 @@ import (
 )
 
 type Config struct {
-	lock                 sync.Mutex
-	LogLevel             string
-	Controllers          string
-	PluginDir            string
-	Namespace            string
-	OmitLease            bool
-	NamespaceRestriction bool
-	ServerPortHTTP       int
-	ArbitraryOptions     map[string]*ArbitraryOption
+	lock                        sync.Mutex
+	LogLevel                    string
+	Controllers                 string
+	PluginDir                   string
+	Name                        string
+	Namespace                   string
+	OmitLease                   bool
+	DisableNamespaceRestriction bool
+	NamespaceRestriction        bool
+	ServerPortHTTP              int
+	CPUProfile                  string
+	ArbitraryOptions            map[string]*ArbitraryOption
 }
 
 func NewConfig() *Config {
@@ -93,13 +96,16 @@ func (this *Config) AddDurationOption(name string) (*ArbitraryOption, bool) {
 }
 
 func (this *Config) AddToCommand(cmd *cobra.Command) {
+	cmd.PersistentFlags().StringVarP(&this.Name, "name", "", "", "name used for conroller manager")
 	cmd.PersistentFlags().StringVarP(&this.Namespace, "namespace", "", "", "namepace for lease")
 	cmd.PersistentFlags().BoolVarP(&this.OmitLease, "omit-lease", "", false, "omit lease for development")
 	cmd.PersistentFlags().StringVarP(&this.Controllers, "controllers", "c", "all", "comma separated list of controllers to start (<name>,source,target,all)")
 	cmd.PersistentFlags().StringVarP(&this.PluginDir, "plugin-dir", "", "", "directory containing go plugins")
 	cmd.PersistentFlags().IntVarP(&this.ServerPortHTTP, "server-port-http", "", 0, "HTTP server port (serving /healthz, /metrics, ...)")
 	cmd.PersistentFlags().StringVarP(&this.LogLevel, "log-level", "D", "", "logrus log level")
-	cmd.PersistentFlags().BoolVarP(&this.NamespaceRestriction, "namespace-local-access-only", "n", false, "enable access restriction for namespace local access only")
+	cmd.PersistentFlags().StringVarP(&this.CPUProfile, "cpuprofile", "", "", "set file for cpu profiling")
+	cmd.PersistentFlags().BoolVarP(&this.NamespaceRestriction, "namespace-local-access-only", "n", false, "enable access restriction for namespace local access only (deprecated)")
+	cmd.PersistentFlags().BoolVarP(&this.DisableNamespaceRestriction, "disable-namespace-restriction", "", false, "disable access restriction for namespace local access only")
 
 	for _, o := range this.ArbitraryOptions {
 		o.AddToCommand(cmd)

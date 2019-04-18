@@ -19,6 +19,7 @@ package source
 import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"reflect"
 	"strings"
 	"time"
 
@@ -42,10 +43,35 @@ func SourceReconciler(sourceType DNSSourceType, rtype controller.ReconcilerType)
 		if err != nil {
 			return nil, err
 		}
+		copt, _ := c.GetStringOption(OPT_CLASS)
+		classes := dnsutils.NewClasses(copt)
+		c.SetFinalizerHandler(dnsutils.NewFinalizer(c, c.GetDefinition().FinalizerName(), classes))
+		targetclass, _ := c.GetStringOption(OPT_TARGETCLASS)
+		if targetclass == "" {
+			if !classes.Contains(dnsutils.DEFAULT_CLASS) && classes.Main() != dnsutils.DEFAULT_CLASS {
+				targetclass = classes.Main()
+			}
+		}
+		c.Infof("responsible for classes: %s (%s)", classes, classes.Main())
+		c.Infof("target class           : %s", targetclass)
 		reconciler := &sourceReconciler{
 			SlaveAccess: reconcilers.NewSlaveAccess(c, sourceType.Name(), SlaveResources, MasterResourcesType(sourceType.GroupKind())),
 			source:      s,
+			classes:     classes,
+			targetclass: targetclass,
 		}
+
+		reconciler.namespace, _ = c.GetStringOption(OPT_NAMESPACE)
+		reconciler.nameprefix, _ = c.GetStringOption(OPT_NAMEPREFIX)
+		excluded, _ := c.GetStringArrayOption(OPT_EXCLUDE)
+		reconciler.excluded = utils.NewStringSetByArray(excluded)
+		reconciler.Infof("found excluded domains: %v", reconciler.excluded)
+
+		if c.GetMainCluster() == c.GetCluster(TARGET_CLUSTER) {
+			reconciler.namespace = ""
+			reconciler.nameprefix = ""
+		}
+
 		nested, err := reconcilers.NewNestedReconciler(rtype, reconciler)
 		if err != nil {
 			return nil, err
@@ -58,11 +84,12 @@ func SourceReconciler(sourceType DNSSourceType, rtype controller.ReconcilerType)
 type sourceReconciler struct {
 	*reconcilers.NestedReconciler
 	*reconcilers.SlaveAccess
-	excluded   utils.StringSet
-	source     DNSSource
-	key        string
-	namespace  string
-	nameprefix string
+	excluded    utils.StringSet
+	source      DNSSource
+	classes     *dnsutils.Classes
+	targetclass string
+	namespace   string
+	nameprefix  string
 }
 
 func (this *sourceReconciler) Start() {
@@ -72,17 +99,6 @@ func (this *sourceReconciler) Start() {
 }
 
 func (this *sourceReconciler) Setup() {
-	this.key, _ = this.GetStringOption(OPT_KEY)
-	this.namespace, _ = this.GetStringOption(OPT_NAMESPACE)
-	this.nameprefix, _ = this.GetStringOption(OPT_NAMEPREFIX)
-	excluded, _ := this.GetStringArrayOption(OPT_EXCLUDE)
-	this.excluded = utils.NewStringSetByArray(excluded)
-	this.Infof("found excluded domains: %v", this.excluded)
-
-	if this.GetMainCluster() == this.GetCluster(TARGET_CLUSTER) {
-		this.namespace = ""
-		this.nameprefix = ""
-	}
 	this.SlaveAccess.Setup()
 	this.source.Setup()
 	this.NestedReconciler.Setup()
@@ -322,6 +338,9 @@ func (this *sourceReconciler) Delete(logger logger.LogContext, obj resources.Obj
 func (this *sourceReconciler) createEntryFor(logger logger.LogContext, obj resources.Object, dns string, info *DNSInfo) error {
 	entry := &api.DNSEntry{}
 	entry.GenerateName = strings.ToLower(this.nameprefix + obj.GetName() + "-" + obj.GroupKind().Kind + "-")
+	if this.targetclass != "" {
+		entry.SetAnnotations(map[string]string{CLASS_ANNOTATION: this.targetclass})
+	}
 	entry.Spec.DNSName = dns
 	entry.Spec.Targets = info.Targets.AsArray()
 	if this.namespace == "" {
@@ -367,6 +386,18 @@ func (this *sourceReconciler) updateEntry(logger logger.LogContext, info *DNSInf
 	f := func(o resources.ObjectData) (bool, error) {
 		spec := &o.(*api.DNSEntry).Spec
 		mod := &utils.ModificationState{}
+		if this.targetclass != "" {
+			annos := map[string]string{CLASS_ANNOTATION: this.targetclass}
+			if !reflect.DeepEqual(annos, o.GetAnnotations()) {
+				o.SetAnnotations(annos)
+				mod.Modify(true)
+			}
+		} else {
+			if len(o.GetAnnotations()) != 0 {
+				o.SetAnnotations(map[string]string{})
+				mod.Modify(true)
+			}
+		}
 		mod.AssureInt64PtrPtr(&spec.TTL, info.TTL)
 		mod.AssureInt64PtrPtr(&spec.CNameLookupInterval, info.Interval)
 		mod.AssureStringSet(&spec.Targets, info.Targets)

@@ -18,11 +18,12 @@ package source
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/gardener/controller-manager-library/pkg/logger"
 	"github.com/gardener/controller-manager-library/pkg/resources"
 	"github.com/gardener/controller-manager-library/pkg/utils"
-	"strconv"
-	"strings"
 )
 
 func (this *sourceReconciler) exclude(dns string) bool {
@@ -44,9 +45,7 @@ func (this *sourceReconciler) exclude(dns string) bool {
 }
 
 func (this *sourceReconciler) getDNSInfo(logger logger.LogContext, obj resources.Object, s DNSSource, current *DNSCurrentState) (*DNSInfo, error) {
-	key := obj.GetAnnotations()[KEY_ANNOTATION]
-	if key != this.key {
-		logger.Infof("annotated key %q does not match specified key %q -> skip ", key, this.key)
+	if !this.classes.IsResponsibleFor(logger, obj) {
 		return nil, nil
 	}
 	a := obj.GetAnnotations()[DNS_ANNOTATION]

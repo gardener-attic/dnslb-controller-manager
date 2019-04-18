@@ -17,9 +17,9 @@
 package crds
 
 import (
-	"github.com/gardener/controller-manager-library/pkg/clientsets/apiextensions"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 
+	"github.com/gardener/controller-manager-library/pkg/resources/apiextensions"
 	api "github.com/gardener/external-dns-management/pkg/apis/dns/v1alpha1"
 )
 
@@ -31,12 +31,12 @@ var DNSOwnerCRD = apiextensions.CreateCRDObject(api.GroupName, api.Version, api.
 		JSONPath:    ".spec.ownerId",
 	})
 
-var DNSProviderCRD = apiextensions.CreateCRDObject(api.GroupName, api.Version, api.DNSProviderKind, api.DNSProviderPlural, "dnspr", true,
+var DNSProviderCRD = apiextensions.CreateCRDObjectWithStatus(api.GroupName, api.Version, api.DNSProviderKind, api.DNSProviderPlural, "dnspr", true,
 	v1beta1.CustomResourceColumnDefinition{
 		Name:        "TYPE",
 		Description: "Provider type",
 		Type:        "string",
-		JSONPath:    ".status.providerType",
+		JSONPath:    ".spec.type",
 	},
 	v1beta1.CustomResourceColumnDefinition{
 		Name:        "STATUS",
@@ -51,6 +51,18 @@ var DNSEntryCRD = apiextensions.CreateCRDObjectWithStatus(api.GroupName, api.Ver
 		Description: "DNS ObjectName",
 		Type:        "string",
 		JSONPath:    ".spec.dnsName",
+	},
+	v1beta1.CustomResourceColumnDefinition{
+		Name:        "TYPE",
+		Description: "Provider type",
+		Type:        "string",
+		JSONPath:    ".status.providerType",
+	},
+	v1beta1.CustomResourceColumnDefinition{
+		Name:        "PROVIDER",
+		Description: "Provider",
+		Type:        "string",
+		JSONPath:    ".status.provider",
 	},
 	v1beta1.CustomResourceColumnDefinition{
 		Name:        "STATUS",

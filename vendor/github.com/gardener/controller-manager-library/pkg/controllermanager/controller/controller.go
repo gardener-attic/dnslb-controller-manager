@@ -23,15 +23,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gardener/controller-manager-library/pkg/clientsets/apiextensions"
-	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/mappings"
-	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile"
-
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/cluster"
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/config"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/mappings"
+	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile"
 	"github.com/gardener/controller-manager-library/pkg/ctxutil"
 	"github.com/gardener/controller-manager-library/pkg/logger"
 	"github.com/gardener/controller-manager-library/pkg/resources"
+	"github.com/gardener/controller-manager-library/pkg/resources/apiextensions"
 	"github.com/gardener/controller-manager-library/pkg/utils"
 	"k8s.io/client-go/tools/record"
 )
@@ -134,6 +133,7 @@ type controller struct {
 	owning      ResourceKey
 	reconcilers map[string]reconcile.Interface
 	mappings    map[_ReconcilerMapping]string
+	finalizer   Finalizer
 
 	handlers map[string]*ClusterHandler
 
@@ -168,6 +168,7 @@ func NewController(env Environment, def Definition, cmp mappings.Definition) (*c
 		pools:       map[string]*pool{},
 		reconcilers: map[string]reconcile.Interface{},
 		mappings:    map[_ReconcilerMapping]string{},
+		finalizer:   NewDefaultFinalizer(def.FinalizerName()),
 	}
 
 	this.ready.start()
@@ -186,7 +187,7 @@ func NewController(env Environment, def Definition, cmp mappings.Definition) (*c
 		this.Infof("create required crds for cluster %q (used for %q)", cluster.GetName(), n)
 		for _, crd := range crds {
 			this.Infof("   %s", crd.Name)
-			apiextensions.CreateCRDFromObject(cluster.Clientsets(), crd)
+			apiextensions.CreateCRDFromObject(cluster, crd)
 		}
 	}
 	for n, t := range def.Reconcilers() {
@@ -462,6 +463,13 @@ func (this *controller) GetIntOption(name string) (int, error) {
 		return 0, err
 	}
 	return opt.IntValue(), nil
+}
+func (this *controller) GetDurationOption(name string) (time.Duration, error) {
+	opt, err := this.GetOption(name)
+	if err != nil {
+		return 0, err
+	}
+	return opt.DurationValue(), nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

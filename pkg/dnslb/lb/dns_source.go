@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
-	"github.com/gardener/dnslb-controller-manager/pkg/crds"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/lb/watch"
 	lbutils "github.com/gardener/dnslb-controller-manager/pkg/dnslb/utils"
 
@@ -35,7 +34,6 @@ type DNSLBSource struct {
 var _ source.DNSSource = &DNSLBSource{}
 
 func NewDNSLBSource(c controller.Interface) (source.DNSSource, error) {
-	var clientsets = c.GetMainCluster().Clientsets()
 
 	var ip net.IP
 	val, _ := c.GetStringOption(OPT_BOGUS_NXDOMAIN)
@@ -46,10 +44,6 @@ func NewDNSLBSource(c controller.Interface) (source.DNSSource, error) {
 		} else {
 			c.Infof("using bogus nxdomain address %s", ip)
 		}
-	}
-	err := crds.RegisterCrds(clientsets)
-	if err != nil {
-		return nil, err
 	}
 	state := c.GetOrCreateSharedValue(KEY_STATE,
 		func() interface{} {

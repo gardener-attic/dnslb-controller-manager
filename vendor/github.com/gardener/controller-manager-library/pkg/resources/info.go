@@ -18,6 +18,7 @@ package resources
 
 import (
 	"fmt"
+	"github.com/gardener/controller-manager-library/pkg/logger"
 	"github.com/gardener/controller-manager-library/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -45,6 +46,10 @@ func (this *Info) GroupKind() schema.GroupKind {
 
 func (this *Info) GroupVersion() schema.GroupVersion {
 	return schema.GroupVersion{Group: this.groupVersion.Group, Version: this.groupVersion.Version}
+}
+
+func (this *Info) GroupVersionResource() schema.GroupVersionResource {
+	return schema.GroupVersionResource{Group: this.groupVersion.Group, Version: this.groupVersion.Version, Resource: this.resourcename}
 }
 
 func (this *Info) Group() string {
@@ -129,9 +134,14 @@ func (this *ResourceInfos) update() error {
 	cfg := this.cluster.Config()
 	dc, err := discovery.NewDiscoveryClientForConfig(&cfg)
 
+	//list, err := discovery.ServerResources(dc)
 	list, err := dc.ServerResources()
 	if err != nil {
-		return err
+		logger.Warnf("failed to get all server resources for cluster %s: %s", this.cluster.GetName(), err)
+		if len(list) == 0 {
+			return err
+		}
+		logger.Infof("found %d resources", len(list))
 	}
 	this.lock.Lock()
 	defer this.lock.Unlock()
@@ -160,7 +170,11 @@ func (this *ResourceInfos) update() error {
 
 	list, err = dc.ServerPreferredResources()
 	if err != nil {
-		return err
+		logger.Warnf("*** failed to get all preferred server resources for cluster %s: %s", this.cluster.GetName(), err)
+		if len(list) == 0 {
+			return err
+		}
+		logger.Infof("found %d resources", len(list))
 	}
 	for _, rl := range list {
 		gv, _ := schema.ParseGroupVersion(rl.GroupVersion)
