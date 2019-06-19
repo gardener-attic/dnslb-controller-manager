@@ -166,14 +166,14 @@ func (this *Watch) Handle() (utils.StringSet, source.DNSFeedback) {
 
 	if this.Singleton {
 		for _, target := range this.Targets {
-			mod := this.check(target)
+			active := this.check(target)
 			if this.IsHealthy(target.GetHostName(), this.dnsname) {
 				metrics.ReportEndpoint(this.GetKey(), target.GetKey(), target.GetHostName(), true)
 				if len(healthyTargets) == 0 {
 					healthyTargets = append(healthyTargets, target)
 				}
 				done.AddHealthyTarget(target)
-				if !mod {
+				if active {
 					healthyTargets[0] = target
 					ctx.StateInfof(target.GetHostName(), "healthy active target for %s is %s", this.dnsname, target.GetHostName())
 				} else {
@@ -182,7 +182,7 @@ func (this *Watch) Handle() (utils.StringSet, source.DNSFeedback) {
 			} else {
 				metrics.ReportEndpoint(this.GetKey(), target.GetKey(), target.GetHostName(), false)
 				done.AddUnhealthyTarget(target)
-				if !mod {
+				if active {
 					ctx.StateInfof(target.GetHostName(), "active target %s is unhealthy", target.GetHostName())
 				} else {
 					ctx.StateInfof(target.GetHostName(), "target %s is unhealthy", target.GetHostName())
