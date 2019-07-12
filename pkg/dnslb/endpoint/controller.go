@@ -20,6 +20,7 @@ import (
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile/reconcilers"
 	"github.com/gardener/controller-manager-library/pkg/resources"
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -28,19 +29,24 @@ import (
 const AnnotationLoadbalancer = api.GroupName + "/dnsloadbalancer"
 
 const TARGET_CLUSTER = "target"
-const KEY_USAGES = "source-usages"
 
 const LBUSAGES = "loadbalancer"
+
+const OPT_TARGETCHECKPERIOD = "target-check-period"
 
 var serviceGK = resources.NewGroupKind(corev1.GroupName, "Service")
 var ingressGK = resources.NewGroupKind(extensions.GroupName, "Ingress")
 
 func init() {
-	cluster.Register("target", "target", "target cluster for endpoints")
+	err := cluster.Register("target", "target", "target cluster for endpoints")
+	if err != nil {
+		panic(err)
+	}
 
 	controller.Configure("dnslb-endpoint").
 		FinalizerDomain(api.GroupName).
 		Cluster(cluster.DEFAULT). // used as main cluster
+		DefaultedDurationOption(OPT_TARGETCHECKPERIOD, 60*time.Second, "period for checking targets").
 		DefaultWorkerPool(3, 0).
 		MainResource(corev1.GroupName, "Service").
 		Watch(extensions.GroupName, "Ingress").

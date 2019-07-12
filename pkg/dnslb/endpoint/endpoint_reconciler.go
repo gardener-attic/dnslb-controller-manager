@@ -7,7 +7,7 @@ import (
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 	"github.com/gardener/dnslb-controller-manager/pkg/dnslb/endpoint/sources"
-	
+
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller"
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile"
 	"github.com/gardener/controller-manager-library/pkg/controllermanager/controller/reconcile/reconcilers"
@@ -21,10 +21,11 @@ import (
 )
 
 type source_reconciler struct {
+	targetCheckPeriod time.Duration
 	*reconcilers.SlaveAccess
-	usages       *reconcilers.UsageAccess
-	lb_resource  resources.Interface
-	ep_resource  resources.Interface
+	usages      *reconcilers.UsageAccess
+	lb_resource resources.Interface
+	ep_resource resources.Interface
 }
 
 func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
@@ -39,11 +40,17 @@ func SourceReconciler(c controller.Interface) (reconcile.Interface, error) {
 		return nil, err
 	}
 
+	targetCheckPeriod, err := c.GetDurationOption(OPT_TARGETCHECKPERIOD)
+	if err != nil {
+		return nil, err
+	}
+
 	return &source_reconciler{
-		SlaveAccess: reconcilers.NewSlaveAccessBySpec(c, lbSlaveAccessSpec),
-		usages:      reconcilers.NewUsageAccessBySpec(c, lbUsageAccessSpec),
-		lb_resource: lb,
-		ep_resource: ep,
+		targetCheckPeriod: targetCheckPeriod,
+		SlaveAccess:       reconcilers.NewSlaveAccessBySpec(c, lbSlaveAccessSpec),
+		usages:            reconcilers.NewUsageAccessBySpec(c, lbUsageAccessSpec),
+		lb_resource:       lb,
+		ep_resource:       ep,
 	}, nil
 }
 
@@ -60,7 +67,7 @@ func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources
 		logger.Debugf("HANDLE reconcile %s for %s", obj.ObjectName(), ref)
 		lb, result := this.validate(logger, ref, src)
 		if !result.IsSucceeded() {
-			this.deleteEndpoint(logger, src, ep)
+			_ = this.deleteEndpoint(logger, src, ep)
 			return result
 		}
 		err := this.SetFinalizer(obj)
@@ -76,7 +83,7 @@ func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources
 			}
 			logger.Infof("dns load balancer endpoint %s created for %s", newep.ObjectName(), ref)
 			src.Eventf(corev1.EventTypeNormal, "sync", "dns load balancer endpoint %s created", newep.ObjectName())
-			return reconcile.Succeeded(logger).RescheduleAfter(60 * time.Second)
+			return reconcile.Succeeded(logger).RescheduleAfter(this.targetCheckPeriod)
 		}
 		mod := this.updateEndpoint(logger, ep, newep, lb, src)
 		if mod.Modified {
@@ -92,7 +99,7 @@ func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources
 		} else {
 			logger.Debugf("endpoint up to date")
 		}
-		return reconcile.Succeeded(logger).RescheduleAfter(60 * time.Second)
+		return reconcile.Succeeded(logger).RescheduleAfter(this.targetCheckPeriod)
 	} else {
 		err := this.deleteEndpoint(logger, obj, ep)
 		if err != nil {
@@ -100,7 +107,6 @@ func (this *source_reconciler) Reconcile(logger logger.LogContext, obj resources
 		}
 		return reconcile.DelayOnError(logger, this.RemoveFinalizer(obj))
 	}
-	return reconcile.Succeeded(logger)
 }
 
 func LBForSource(obj resources.Object) (resources.ObjectName, bool) {
