@@ -1,5 +1,7 @@
 # DNS Loadbalancer Controller Manager
 
+[![reuse compliant](https://reuse.software/badge/reuse-compliant.svg)](https://reuse.software/)
+
 The *DNS Load Balancer Controller Manager* hosts kubernetes controllers managing
 DNS entries acting as kind of load balancer. Depending on health checks on
 explicitly maintained endpoints the endpoints are added or removed from an DNS
