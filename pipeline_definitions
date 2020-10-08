@@ -19,11 +19,11 @@ dnslb-controller-manager:
             dockerfile: 'build/Dockerfile'
     steps:
       check:
-        image: 'golang:1.10.2'
+        image: 'golang:1.13'
       test:
-        image: 'golang:1.10.2'
+        image: 'golang:1.13'
       build:
-        image: 'golang:1.10.2'
+        image: 'golang:1.13'
         output_dir: 'binary'
   jobs:
     head-update:
