@@ -5,8 +5,8 @@
 package crds
 
 import (
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"github.com/gardener/controller-manager-library/pkg/resources/apiextensions"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 
 	api "github.com/gardener/dnslb-controller-manager/pkg/apis/loadbalancer/v1beta1"
 )
@@ -31,25 +31,23 @@ var DNSLBCRD = apiextensions.CreateCRDObject(api.GroupName, api.Version, api.Loa
 		JSONPath:    ".status.state",
 	})
 
-
 var DNSLBEPCRD = apiextensions.CreateCRDObject(api.GroupName, api.Version, api.LoadBalancerEndpointResourceKind, api.LoadBalancerEndpointResourcePlural, "dnslbep", true,
-		v1beta1.CustomResourceColumnDefinition{
-			Name:        "DNSLB",
-			Description: "Loadbalancer",
-			Type:        "string",
-			JSONPath:    ".spec.loadbalancer",
-		},
-		v1beta1.CustomResourceColumnDefinition{
-			Name:        "HEALTHY",
-			Description: "Health status of endpoint",
-			Type:        "boolean",
-			JSONPath:    ".status.healthy",
-		},
-		v1beta1.CustomResourceColumnDefinition{
-			Name:        "STATUS",
-			Description: "Assigned to Loadbalancer",
-			Type:        "string",
-			JSONPath:    ".status.state",
-		},
-	)
-
+	v1beta1.CustomResourceColumnDefinition{
+		Name:        "DNSLB",
+		Description: "Loadbalancer",
+		Type:        "string",
+		JSONPath:    ".spec.loadbalancer",
+	},
+	v1beta1.CustomResourceColumnDefinition{
+		Name:        "HEALTHY",
+		Description: "Health status of endpoint",
+		Type:        "boolean",
+		JSONPath:    ".status.healthy",
+	},
+	v1beta1.CustomResourceColumnDefinition{
+		Name:        "STATUS",
+		Description: "Assigned to Loadbalancer",
+		Type:        "string",
+		JSONPath:    ".status.state",
+	},
+)

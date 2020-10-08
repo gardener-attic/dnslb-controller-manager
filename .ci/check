@@ -31,7 +31,7 @@ ignore=(
 )
 
 # Install Golint (linting tool).
-go get -u github.com/golang/lint/golint
+GO111MODULE=on go get -u golang.org/x/lint
 
 ###############################################################################
 

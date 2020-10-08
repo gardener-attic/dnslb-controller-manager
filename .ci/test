@@ -19,8 +19,8 @@ source "$SOURCE_PATH/build/setupenv.src"
 
 # Install Ginkgo (test framework) to be able to execute the tests.
 echo "installing ginko..."
-go get -u github.com/onsi/gomega
-go get -u github.com/onsi/ginkgo/ginkgo
+GO111MODULE=on go get -u github.com/onsi/gomega@v1.3.0
+GO111MODULE=on go get -u github.com/onsi/ginkgo/ginkgo@v1.4.0
 
 ###############################################################################
 
